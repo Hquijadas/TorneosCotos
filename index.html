@@ -83,6 +83,7 @@
         /* Colores personalizados según el tipo de torneo */
         .card-badge.mus { background-color: #e67e22; }
         .card-badge.padel { background-color: #27ae60; }
+        .card-badge.futbol { background-color: #1abc9c; } /* Color verde para el fútbol */
 
         .card-date {
             font-size: 0.9rem;
@@ -90,6 +91,7 @@
             margin-bottom: 1.5rem;
             flex-grow: 1;
         }
+
         .card-btn {
             text-align: center;
             text-decoration: none;
@@ -109,6 +111,7 @@
 
     <header class="header">
         <h1>Portal de Torneos</h1>
+        <p>Historial y gestión de todos los torneos organizados</p>
     </header>
 
     <main class="container">
@@ -118,23 +121,31 @@
     <script>
         // --- LÓGICA JAVASCRIPT ---
 
-        // Lista de torneos: Modifica o añade nuevos objetos aquí
+        // Lista de torneos: Aquí se ha incluido el nuevo torneo de fútbol
         const torneos = [
             {
                 id: 1,
-                titulo: "Torneo de Mus",
+                titulo: "I Torneo de Mus",
                 tipo: "mus",
-                fecha: "Julio 2026",
-                descripcion: "Fase de grupos y eliminatorias del campeonato de Mus actualizados en tiempo real.",
-                enlace: "./mus/index.html" // Ruta interna hacia la subcarpeta del torneo
+                fecha: "Mayo 2026",
+                descripcion: "Fase de grupos y eliminatorias del campeonato de Mus.",
+                enlace: "./mus-1/index.html"
             },
             {
                 id: 2,
                 titulo: "Torneo de Pádel Verano",
                 tipo: "padel",
                 fecha: "Julio 2026",
-                descripcion: "Cuadro de competición, horarios y partidos actualizados en tiempo real.",
-                enlace: "./padel/index.html" // Ruta interna hacia la subcarpeta del torneo
+                descripcion: "Cuadro de competición y actualización de resultados en tiempo real.",
+                enlace: "./padel-verano/index.html"
+            },
+            {
+                id: 3,
+                titulo: "I Torneo de Fútbol Cotos",
+                tipo: "futbol",
+                fecha: "Julio 2026",
+                descripcion: "Clasificación de grupos, últimos resultados y cuadro de eliminatorias finales.",
+                enlace: "./Futbol/index.html" // Ruta relativa correspondiente a la nueva carpeta
             }
         ];
 
@@ -146,7 +157,7 @@
                 const card = document.createElement('article');
                 card.classList.add('card');
 
-                // Formatear el badge de tipo (Mus, Padel, etc.)
+                // Formatear el badge de tipo
                 const badgeClass = torneo.tipo.toLowerCase();
                 const tipoFormateado = torneo.tipo.charAt(0).toUpperCase() + torneo.tipo.slice(1);
 
