@@ -59,7 +59,15 @@
 
     <div class="header"><h1>🎾 Torneo de Pádel</h1><p>Resultados Oficiales en Directo</p></div>
     <div class="nube-status" id="statusNube">Conectando al torneo... ⏳</div>
-
+<div class="container">
+        <div id="tab-partidos" class="tab-content active">
+            <div class="search-container">
+                <input type="text" id="buscadorPartidos" class="search-input" placeholder="🔍 Buscar pareja o jugador..." onkeyup="filtrarYRenderizar()">
+                <button id="btnFiltroFav" class="btn-fav-filter" onclick="toggleFiltroFavoritos()">⭐ Ver solo Mis Partidos</button>
+            </div>
+            <h2 style="color: var(--text-main); margin-top: 5px;">Calendario de Partidas</h2>
+            <div id="contenedorPartidos"></div>
+        </div>
     <div class="container">
         <div id="tab-partidos" class="tab-content active">
             <h2 style="color: var(--text-main);">Calendario de Grupos</h2>
@@ -239,6 +247,19 @@
         uiFinal.innerHTML = hFinal || `<div class="empty-state">Las tarjetas de partidos aparecerán aquí.</div>`;
     }
 
+    function filtrarYRenderizar() {
+        try {
+            textoBusqueda = (document.getElementById('buscadorPartidos').value || "").toLowerCase();
+            let partidosFiltrados = partidos.filter(m => {
+                let coincideTexto = true;
+                if (textoBusqueda !== "") coincideTexto = ((m.nombre1 || "").toLowerCase().includes(textoBusqueda)) || ((m.nombre2 || "").toLowerCase().includes(textoBusqueda));
+                let coincideFav = true;
+                if (verSoloFavoritos) coincideFav = (m.id1 === miParejaFavoritaId || m.id2 === miParejaFavoritaId);
+                return coincideTexto && coincideFav;
+            });
+            renderizarPartidos(partidosFiltrados);
+        } catch (e) { logEstado("🔴 Error al filtrar: " + e.message, "error"); }
+    }
     // NUEVO: RENDERIZADO DE CLASIFICACIONES EN DESPLEGABLES CASCADA
 function renderizarClasificaciones() {
         const uiClasificacion = document.getElementById('contenedorClasificaciones');
