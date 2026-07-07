@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Torneos | Portal Principal</title>
+    
+    <style>
+        /* --- ESTILOS CSS --- */
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+        }
+
+        .header {
+            text-align: center;
+            padding: 3rem 1rem;
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .header p {
+            margin-top: 0.5rem;
+            color: #bdc3c7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 3rem auto;
+            padding: 0 1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-badge {
+            align-self: flex-start;
+            background: var(--secondary-color);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Colores personalizados según el tipo de torneo */
+        .card-badge.mus { background-color: #e67e22; }
+        .card-badge.padel { background-color: #27ae60; }
+
+        .card-date {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-bottom: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .card-btn {
+            text-align: center;
+            text-decoration: none;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .card-btn:hover {
+            background-color: var(--secondary-color);
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <h1>Portal de Torneos</h1>
+        <p>Historial y gestión de todos los torneos organizados</p>
+    </header>
+
+    <main class="container">
+        <div id="grid-torneos" class="grid"></div>
+    </main>
+
+    <script>
+        // --- LÓGICA JAVASCRIPT ---
+
+        // Lista de torneos: Modifica o añade nuevos objetos aquí
+        const torneos = [
+            {
+                id: 1,
+                titulo: "I Torneo de Mus",
+                tipo: "mus",
+                fecha: "Mayo 2026",
+                descripcion: "Fase de grupos y eliminatorias del campeonato de Mus.",
+                enlace: "./mus-1/index.html" // Ruta interna hacia la subcarpeta del torneo
+            },
+            {
+                id: 2,
+                titulo: "Torneo de Pádel Verano",
+                tipo: "padel",
+                fecha: "Julio 2026",
+                descripcion: "Cuadro de competición y actualización de resultados en tiempo real.",
+                enlace: "./padel-verano/index.html" // Ruta interna hacia la subcarpeta del torneo
+            }
+        ];
+
+        const gridTorneos = document.getElementById('grid-torneos');
+
+        function renderizarTorneos() {
+            torneos.forEach(torneo => {
+                // Crear la tarjeta contenedora
+                const card = document.createElement('article');
+                card.classList.add('card');
+
+                // Formatear el badge de tipo (Mus, Padel, etc.)
+                const badgeClass = torneo.tipo.toLowerCase();
+                const tipoFormateado = torneo.tipo.charAt(0).toUpperCase() + torneo.tipo.slice(1);
+
+                // Estructura interna de la tarjeta
+                card.innerHTML = `
+                    <span class="card-badge ${badgeClass}">${tipoFormateado}</span>
+                    <h2 class="card-title">${torneo.titulo}</h2>
+                    <p class="card-date">📅 ${torneo.fecha}</p>
+                    <p class="card-date" style="margin-top: -1rem; margin-bottom: 1.5rem;">${torneo.descripcion}</p>
+                    <a href="${torneo.enlace}" class="card-btn">Ver Torneo</a>
+                `;
+
+                // Añadir la tarjeta al grid principal
+                gridTorneos.appendChild(card);
+            });
+        }
+
+        // Ejecutar la función cuando el documento esté completamente cargado
+        document.addEventListener('DOMContentLoaded', renderizarTorneos);
+    </script>
+</body>
+</html>
