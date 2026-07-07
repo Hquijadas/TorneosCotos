@@ -1,1 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>App del Torneo de Mus</title>
+    <style>
+        :root { --primary: #27ae60; --primary-dark: #1e8449; --bg-color: #f0f3f4; --card-bg: #ffffff; --text-main: #2c3e50; --text-muted: #7f8c8d; --accent: #8e44ad; --fav-color: #f1c40f; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 0; padding-bottom: 20px; }
+        .header-wrapper { position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background-color: var(--text-main); color: white; padding: 15px; text-align: center; cursor: pointer; transition: background-color 0.2s; }
+        .header:active { background-color: #1a252f; }
+        .header h1 { margin: 0; font-size: 1.5em; } 
+        .header p { margin: 5px 0 0 0; font-size: 0.9em; color: var(--primary); font-weight: bold;}
+        .top-nav { background: white; display: flex; justify-content: space-around; padding: 10px 0; }
+        .nav-item { text-align: center; color: var(--text-muted); text-decoration: none; font-size: 0.85em; font-weight: bold; cursor: pointer; padding: 8px 10px; border-radius: 8px; transition: all 0.2s; }
+        .nav-item.active { color: var(--primary); background-color: #e8f8f5; }
+        
+        /* ESTILOS DEL MODO DIAGNÓSTICO */
+        .nube-status { text-align: center; padding: 12px; font-size: 0.85em; font-weight: bold; color: #333; background: #fcf3cf; transition: 0.3s; word-wrap: break-word;}
+        .nube-status.error { background: #fadbd8; color: #c0392b; border-bottom: 2px solid #e74c3c; }
+        .nube-status.success { background: #d4efdf; color: #1e8449; }
 
+        .container { padding: 15px; max-width: 800px; margin: 0 auto; }
+        .search-container { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .search-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1em; box-sizing: border-box; outline: none; }
+        .search-input:focus { border-color: var(--primary); }
+        .btn-fav-filter { background: white; border: 2px solid var(--fav-color); color: #333; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-fav-filter.active { background: var(--fav-color); color: white; }
+        .star-icon { cursor: pointer; font-size: 1.3em; transition: transform 0.2s; margin-right: 5px; user-select: none; }
+        .match-card { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid var(--primary); transition: 0.3s; }
+        .match-card.final { border-left-color: var(--accent); }
+        .match-card.is-fav { border-left-color: var(--fav-color); background-color: #fffdf5; border-width: 8px;}
+        .match-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; color: var(--text-muted); margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .badge { background: #eee; padding: 3px 8px; border-radius: 10px; font-weight: bold; color: var(--text-main);}
+        .teams { text-align: center; font-size: 1.1em; margin: 15px 0; } .teams b { display: block; margin: 5px 0; } .vs { color: #bdc3c7; font-size: 0.8em; font-weight: bold; }
+        .result-box { background: var(--bg-color); text-align: center; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1.2em; color: var(--primary-dark); }
+        .result-pending { color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 10px; background: #fafafa; border-radius: 8px; border: 1px dashed #ccc;}
+        .group-container { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow-x: auto; }
+        .group-container h3 { margin-top: 0; color: var(--text-main); border-bottom: 2px solid var(--primary); padding-bottom: 5px; display: inline-block;}
+        table { width: 100%; border-collapse: collapse; min-width: 350px; }
+        th, td { padding: 8px 4px; text-align: center; border-bottom: 1px solid #eee; font-size: 0.9em; } th { color: var(--text-muted); font-size: 0.8em; text-transform: uppercase; } .text-left { text-align: left; display: flex; align-items: center;} .highlight td { background-color: #e8f8f5; font-weight: bold; }
+        details { margin-bottom: 10px; background: var(--card-bg); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid var(--primary); }
+        summary { background-color: #e8f8f5; color: var(--primary-dark); font-size: 1.1em; padding: 15px; font-weight: bold; cursor: pointer; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+        summary::-webkit-details-marker { display: none; } summary::after { content: '▼'; font-size: 0.8em; color: var(--text-muted); transition: transform 0.2s;} details[open] > summary::after { transform: rotate(180deg); }
+        .matches-wrapper { padding: 15px; background: #fafafa; }
+        .tab-content { display: none; } .tab-content.active { display: block; }
+        .empty-state { text-align: center; color: var(--text-muted); padding: 40px 20px; }
+        .bracket-wrapper { overflow-x: auto; padding-bottom: 20px; margin-bottom: 30px;}
+        .bracket-container { display: flex; flex-direction: row; gap: 20px; min-width: 900px; padding: 10px; }
+        .bracket-column { display: flex; flex-direction: column; justify-content: space-around; gap: 15px; flex: 1; }
+        .bracket-match { background: #fff; border: 2px solid #ecf0f1; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .bracket-header { background: #8e44ad; color: white; text-align: center; font-size: 0.75em; padding: 4px; font-weight: bold; text-transform: uppercase; }
+        .bracket-team { padding: 8px 10px; font-size: 0.85em; border-bottom: 1px solid #ecf0f1; display: flex; justify-content: space-between; align-items: center; }
+        .bracket-team:last-child { border-bottom: none; }
+    </style>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <div class="header-wrapper">
+        <div class="header" onclick="cambiarPestana('tab-partidos', document.querySelectorAll('.nav-item')[0])">
+            <h1>🃏 Torneo de Mus</h1>
+            <p>Resultados en Directo</p>
+        </div>
+        <div class="top-nav">
+            <div class="nav-item active" onclick="cambiarPestana('tab-partidos', this)">🎴 Partidas</div>
+            <div class="nav-item" onclick="cambiarPestana('tab-clasificacion', this)">📊 Grupos</div>
+            <div class="nav-item" onclick="cambiarPestana('tab-final', this)">🏆 Finales</div>
+            <div class="nav-item" onclick="cambiarPestana('tab-normas', this)">📜 Normas</div>
+        </div>
+    </div>
+    
+    <div class="nube-status" id="statusNube">⏳ Iniciando Diagnóstico...</div>
+
+    <div class="container">
+        <div id="tab-partidos" class="tab-content active">
+            <div class="search-container">
+                <input type="text" id="buscadorPartidos" class="search-input" placeholder="🔍 Buscar pareja o jugador..." onkeyup="filtrarYRenderizar()">
+                <button id="btnFiltroFav" class="btn-fav-filter" onclick="toggleFiltroFavoritos()">⭐ Ver solo Mis Partidos</button>
+            </div>
+            <h2 style="color: var(--text-main); margin-top: 5px;">Calendario de Partidas</h2>
+            <div id="contenedorPartidos"></div>
+        </div>
+
+        <div id="tab-clasificacion" class="tab-content">
+            <h2 style="color: var(--text-main);">Clasificación</h2>
+            <p style="font-size: 0.85em; color: var(--text-muted);">Avanzan los 2 primeros a Octavos. Desempates: PG > JF > JC > Alfabeto.</p>
+            <div id="contenedorClasificaciones"></div>
+        </div>
+
+        <div id="tab-final" class="tab-content">
+            <h2 style="color: var(--text-main);">Fase Final</h2>
+            <p style="font-size: 0.85em; color: var(--text-muted);">Desliza hacia la derecha para ver el cuadro 👉</p>
+            <div id="contenedorBracketsPublicos"></div>
+            <h3 style="border-top: 2px dashed #ccc; padding-top: 20px; margin-top: 30px;">Resultados de Eliminatorias</h3>
+            <div id="contenedorFaseFinal"></div>
+        </div>
+
+        <div id="tab-normas" class="tab-content">
+            <h2 style="color: var(--text-main);">Reglamento del Torneo</h2>
+            <div class="match-card" style="border-left-color: #3498db;">
+                <div class="match-header"><span>📍 Ubicación</span></div>
+                <div style="text-align: center; font-size: 1.1em; margin: 10px 0;"><b>Chiringuito cuarta fase</b></div>
+            </div>
+            <div class="group-container">
+                <h3 style="border-bottom-color: #3498db; color: #3498db;">📜 Normas de Juego</h3>
+                <ul style="padding-left: 20px; line-height: 1.6; color: var(--text-main);">
+                    <li>Las partidas se juegan al primero que llegue a <b>3 juegos de 40 tantos</b>.</li>
+                    <li><b>No hay real ni deje</b>.</li>
+                </ul>
+            </div>
+            <div class="group-container">
+                <h3 style="border-bottom-color: #e67e22; color: #e67e22;">📊 Formato y Clasificación</h3>
+                <ul style="padding-left: 20px; line-height: 1.6; color: var(--text-main);">
+                    <li>A la Fase Final avanzarán los <b>2 primeros</b> clasificados de cada grupo.</li>
+                    <li>En caso de empate en la tabla, el orden se decidirá estrictamente por:
+                        <ol style="margin-top: 5px;"><li>Mayor número de <b>partidas ganadas (PG)</b>.</li><li>Mayor número de <b>juegos hechos (a favor / JF)</b>.</li><li>Menor número de <b>juegos en contra (JC)</b>.</li><li>Orden Alfabético.</li></ol>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // SISTEMA DE DIAGNÓSTICO EN PANTALLA
+    const uiStatus = document.getElementById('statusNube');
+    function logEstado(mensaje, tipo = "info") {
+        uiStatus.innerHTML = mensaje;
+        if(tipo === "error") { uiStatus.className = "nube-status error"; console.error(mensaje); }
+        else if(tipo === "success") { uiStatus.className = "nube-status success"; console.log(mensaje); }
+        else { uiStatus.className = "nube-status"; console.log(mensaje); }
+    }
+
+    window.onerror = function(mensaje, url, linea) {
+        logEstado("🔴 ERROR JS APPLE: " + mensaje + " (Línea " + linea + ")", "error");
+        return false;
+    };
+
+    let parejas = []; let partidos = [];
+    const gruposTorneo = ["Grupo A", "Grupo B", "Grupo C", "Grupo D", "Grupo E", "Grupo F", "Grupo G", "Grupo H"];
+    let textoBusqueda = ""; let verSoloFavoritos = false; let miParejaFavoritaId = null;
+
+    try {
+        // COMPROBANDO ALMACENAMIENTO (Fix iOS WhatsApp)
+        logEstado("⏳ Paso 1: Comprobando permisos del navegador...");
+        if (typeof window.localStorage !== 'undefined') {
+            miParejaFavoritaId = window.localStorage.getItem('mus_favorita_id');
+        }
+        
+        // CONFIGURACIÓN FIREBASE
+        logEstado("⏳ Paso 2: Configurando Firebase...");
+        const firebaseConfig = {
+          apiKey: "AIzaSyAEsULVtB_DGK65CseESvzAunU3_MjjaiI",
+          authDomain: "padel-4d591.firebaseapp.com",
+          projectId: "padel-4d591",
+          storageBucket: "padel-4d591.firebasestorage.app",
+          messagingSenderId: "8047356944",
+          appId: "1:8047356944:web:db6ea9e5d99ba371b2ae95",
+          measurementId: "G-1T4924FJ7E"
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        // INICIALIZACIÓN FIRESTORE + FIX DE APPLE
+        logEstado("⏳ Paso 3: Aplicando parches de conexión para iOS...");
+        const db = firebase.firestore();
+        
+        // El modo debug recomendado por la otra IA (verás logs en Safari inspector si conectas cable)
+        firebase.firestore.setLogLevel('debug');
+
+        // LA BALA DE PLATA PARA SAFARI:
+        db.settings({ 
+            experimentalForceLongPolling: true,
+            useFetchStreams: false // <--- Esto desactiva la tecnología que rompe Safari
+        });
+
+        // CONECTANDO...
+        logEstado("⏳ Paso 4: Descargando base de datos...");
+        
+        db.collection("parejas_mus").onSnapshot((qs) => { 
+            parejas = []; qs.forEach((doc) => { parejas.push(doc.data()); }); 
+            renderizarClasificaciones(); 
+        }, (error) => {
+            logEstado("🔴 ERROR Firebase (Parejas): " + error.message, "error");
+        });
+
+        db.collection("partidos_mus").onSnapshot((qs) => { 
+            partidos = []; qs.forEach((doc) => { partidos.push(doc.data()); }); 
+            filtrarYRenderizar(); renderizarClasificaciones(); renderizarBracketsPublicos(); 
+            logEstado("🟢 Todo correcto. Datos en directo activos.", "success");
+        }, (error) => {
+            logEstado("🔴 ERROR Firebase (Partidos): " + error.message, "error");
+        });
+
+    } catch(e) {
+        logEstado("🔴 ERROR FATAL INICIO: " + e.message, "error");
+    }
+
+    // Funciones de la Interfaz
+    function cambiarPestana(idPestana, el) {
+        document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+        document.getElementById(idPestana).classList.add('active'); if(el) el.classList.add('active');
+        window.scrollTo(0, 0);
+    }
+    
+    function setFavorito(idPareja) {
+        try {
+            if (miParejaFavoritaId === idPareja) { miParejaFavoritaId = null; window.localStorage.removeItem('mus_favorita_id'); } 
+            else { miParejaFavoritaId = idPareja; window.localStorage.setItem('mus_favorita_id', idPareja); }
+            renderizarClasificaciones(); filtrarYRenderizar();
+        } catch (e) { alert("Estás en modo privado o navegador de WhatsApp. Usa Safari/Chrome normal para guardar favoritos."); }
+    }
+
+    function toggleFiltroFavoritos() {
+        if (!miParejaFavoritaId && !verSoloFavoritos) { alert("Primero elige a tu pareja favorita pulsando la estrella (☆) en la pestaña de Grupos."); cambiarPestana('tab-clasificacion', document.querySelectorAll('.nav-item')[1]); return; }
+        verSoloFavoritos = !verSoloFavoritos; const btn = document.getElementById('btnFiltroFav');
+        if (verSoloFavoritos) { btn.classList.add('active'); btn.innerText = "⭐ Mostrando Mis Partidos"; } else { btn.classList.remove('active'); btn.innerText = "⭐ Ver solo Mis Partidos"; }
+        filtrarYRenderizar();
+    }
+
+    function filtrarYRenderizar() {
+        try {
+            textoBusqueda = (document.getElementById('buscadorPartidos').value || "").toLowerCase();
+            let partidosFiltrados = partidos.filter(m => {
+                let coincideTexto = true;
+                if (textoBusqueda !== "") coincideTexto = ((m.nombre1 || "").toLowerCase().includes(textoBusqueda)) || ((m.nombre2 || "").toLowerCase().includes(textoBusqueda));
+                let coincideFav = true;
+                if (verSoloFavoritos) coincideFav = (m.id1 === miParejaFavoritaId || m.id2 === miParejaFavoritaId);
+                return coincideTexto && coincideFav;
+            });
+            renderizarPartidos(partidosFiltrados);
+        } catch (e) { logEstado("🔴 Error al filtrar: " + e.message, "error"); }
+    }
+
+    function generarClasificacionArray() {
+        let stats = {}; 
+        parejas.forEach(p => { if(p && p.id) stats[p.id] = { id: p.id, nombre: p.nombre || "Sin Nombre", grupo: p.grupo, pj: 0, pg: 0, pp: 0, jf: 0, jc: 0, dif: 0 }; });
+        partidos.forEach(m => {
+            if (m && m.jugado && m.ronda === "Grupos" && stats[m.id1] && stats[m.id2]) {
+                let s1 = stats[m.id1]; let s2 = stats[m.id2]; 
+                s1.pj++; s2.pj++; s1.jf += (m.juegos1 || 0); s1.jc += (m.juegos2 || 0); s2.jf += (m.juegos2 || 0); s2.jc += (m.juegos1 || 0);
+                if (m.juegos1 > m.juegos2) { s1.pg++; s2.pp++; } else if (m.juegos2 > m.juegos1) { s2.pg++; s1.pp++; }
+            }
+        });
+        return Object.values(stats).map(s => { s.dif = s.jf - s.jc; return s; }).sort((a, b) => { 
+            if (b.pg !== a.pg) return b.pg - a.pg; if (b.jf !== a.jf) return b.jf - a.jf; if (a.jc !== b.jc) return a.jc - b.jc; return (a.nombre || "").localeCompare(b.nombre || ""); 
+        });
+    }
+
+    function renderizarPartidos(partidosAMostrar) {
+        let hGrupos = ""; let hFinal = ""; let abrirDesplegables = (textoBusqueda !== "" || verSoloFavoritos) ? "open" : "";
+        gruposTorneo.forEach(grp => {
+            let pGrp = partidosAMostrar.filter(p => p.ronda === "Grupos" && p.grupo === grp);
+            if(pGrp.length > 0) {
+                hGrupos += `<details ${abrirDesplegables}><summary>${grp}</summary><div class="matches-wrapper">`;
+                pGrp.forEach(m => {
+                    let esFav = (m.id1 === miParejaFavoritaId || m.id2 === miParejaFavoritaId); let claseFav = esFav ? "is-fav" : "";
+                    let resHtml = m.jugado ? `<div class="result-box">Juegos: ${m.juegos1} - ${m.juegos2}</div>` : `<div class="result-pending">Pendiente de jugar</div>`;
+                    hGrupos += `<div class="match-card ${claseFav}"><div class="match-header"><span><span class="badge">Grupos</span></span> ${esFav ? '⭐ Mi Partido' : ''}</div><div class="teams"><b>${m.nombre1 || 'Por definir'}</b><span class="vs">VS</span><b>${m.nombre2 || 'Por definir'}</b></div>${resHtml}</div>`;
+                });
+                hGrupos += `</div></details>`;
+            }
+        });
+
+        let faseFinalFiltrada = partidosAMostrar.filter(p => p.ronda !== "Grupos").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || ""));
+        faseFinalFiltrada.forEach(m => {
+            let esFav = (m.id1 === miParejaFavoritaId || m.id2 === miParejaFavoritaId); let claseFav = esFav ? "is-fav" : "";
+            let resHtml = m.jugado ? `<div class="result-box" style="color:var(--accent);">Juegos: ${m.juegos1} - ${m.juegos2}</div>` : `<div class="result-pending">Pendiente de jugar</div>`;
+            hFinal += `<div class="match-card final ${claseFav}"><div class="match-header"><span><span class="badge" style="background:var(--accent); color:white;">${m.cruce || 'Eliminatoria'}</span></span> ${esFav ? '⭐ Mi Partido' : ''}</div><div class="teams"><b>${m.nombre1 || 'Por definir'}</b><span class="vs">VS</span><b>${m.nombre2 || 'Por definir'}</b></div>${resHtml}</div>`;
+        });
+        document.getElementById('contenedorPartidos').innerHTML = hGrupos || `<div class="empty-state">No hay resultados para esta búsqueda.</div>`; document.getElementById('contenedorFaseFinal').innerHTML = hFinal || `<div class="empty-state">No hay eliminatorias jugándose.</div>`;
+    }
+
+    function renderizarClasificaciones() {
+        let clas = generarClasificacionArray(); let html = "";
+        gruposTorneo.forEach(grp => {
+            let g = clas.filter(c => c.grupo === grp);
+            if (g.length > 0) {
+                let h = `<div class="group-container"><h3>${grp}</h3><table><tr><th class="text-left">Pareja</th><th>PJ</th><th>PG</th><th>JF</th><th>JC</th></tr>`;
+                g.forEach((s, i) => { 
+                    let esFav = (s.id === miParejaFavoritaId); let iconEstrella = esFav ? "⭐" : "☆"; let colorEstrella = esFav ? "color: var(--fav-color);" : "color: #bdc3c7;";
+                    h += `<tr ${i < 2 ? 'class="highlight"' : ''}><td class="text-left"><span class="star-icon" style="${colorEstrella}" onclick="setFavorito('${s.id}')" title="Marcar como favorito">${iconEstrella}</span><b>${s.nombre}</b></td><td>${s.pj}</td><td>${s.pg}</td><td style="color:#27ae60; font-weight:bold;">${s.jf}</td><td style="color:#e74c3c;">${s.jc}</td></tr>`; 
+                });
+                html += h + `</table></div>`;
+            }
+        });
+        document.getElementById('contenedorClasificaciones').innerHTML = html || `<div class="empty-state">Sin datos.</div>`;
+    }
+
+    function renderizarBracketsPublicos() {
+        const contenedor = document.getElementById('contenedorBracketsPublicos'); let pFinales = partidos.filter(p => p.ronda !== "Grupos");
+        if (pFinales.length === 0) return contenedor.innerHTML = `<div class="empty-state">El cuadro se generará al acabar los grupos.</div>`;
+
+        const renderMatch = (rondaNombre, arrayPartidos, color) => {
+            let html = "";
+            arrayPartidos.forEach(m => {
+                let wId = m.jugado ? (m.juegos1 > m.juegos2 ? m.id1 : m.id2) : "";
+                const s = (isW, isP, idTeam) => { let style = ""; if(idTeam && idTeam === miParejaFavoritaId) style += "background-color: #fffbdd; border-left: 3px solid var(--fav-color); "; if(isW) style += "color:#27ae60; font-weight:bold;"; else if(isP && !isW) style += "text-decoration:line-through; color:#bdc3c7;"; return style; };
+                html += `<div class="bracket-match"><div class="bracket-header" style="background:${color};">${m.cruce || 'Cruce'}</div><div class="bracket-team" style="${s(wId === m.id1, m.jugado, m.id1)}"><span>${m.nombre1||'Por definir'}</span>${wId === m.id1 ? ' 🏆' : ''}</div><div class="bracket-team" style="${s(wId === m.id2, m.jugado, m.id2)}"><span>${m.nombre2||'Por definir'}</span>${wId === m.id2 ? ' 🏆' : ''}</div></div>`;
+            });
+            return html;
+        };
+
+        let oct = pFinales.filter(p => p.ronda === "Octavos").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); let cua = pFinales.filter(p => p.ronda === "Cuartos").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); let sem = pFinales.filter(p => p.ronda === "Semifinal").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); let fin = pFinales.filter(p => p.ronda === "Final").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || ""));
+
+        let html = `<div class="bracket-wrapper"><div class="bracket-container">`;
+        if(oct.length > 0) html += `<div class="bracket-column">${renderMatch("Octavos", oct, "#34495e")}</div>`; if(cua.length > 0 || oct.length > 0) html += `<div class="bracket-column">${renderMatch("Cuartos", cua, "#8e44ad")}</div>`; if(sem.length > 0 || cua.length > 0) html += `<div class="bracket-column">${renderMatch("Semifinal", sem, "#9b59b6")}</div>`; if(fin.length > 0 || sem.length > 0) html += `<div class="bracket-column" style="justify-content: center;">${renderMatch("Final", fin, "#e67e22")}</div>`;
+        contenedor.innerHTML = html + `</div></div>`;
+    }
+</script>
+</body>
+</html>
