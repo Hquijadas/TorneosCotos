@@ -83,7 +83,8 @@
         /* Colores personalizados según el tipo de torneo */
         .card-badge.mus { background-color: #e67e22; }
         .card-badge.padel { background-color: #4F60F0; }
-        .card-badge.futbol { background-color: #1abc9c; } /* Color verde para el fútbol */
+        .card-badge.futbol { background-color: #1abc9c; } 
+        .card-badge.tenis { background-color: #f1c40f; }
 
         .card-date {
             font-size: 0.9rem;
@@ -121,13 +122,13 @@
     <script>
         // --- LÓGICA JAVASCRIPT ---
 
-        // Lista de torneos: Aquí se ha incluido el nuevo torneo de fútbol
+        // Lista de torneos
         const torneos = [
             {
                 id: 1,
-                titulo: "I Torneo de Mus",
+                titulo: "Torneo de Mus",
                 tipo: "mus",
-                fecha: "Julio 2026",
+                fecha: "18 y 18 de julio",
                 descripcion: "Fase de grupos y eliminatorias del campeonato de Mus.",
                 enlace: "./mus/index.html"
             },
@@ -135,18 +136,27 @@
                 id: 2,
                 titulo: "Torneo de Pádel Verano",
                 tipo: "padel",
-                fecha: "Julio 2026",
+                fecha: "Del 15 al 26 de julio",
                 descripcion: "Cuadro de competición y actualización de resultados en tiempo real.",
                 enlace: "./padel/index.html"
             },
             {
                 id: 3,
-                titulo: "I Torneo de Fútbol Cotos",
+                titulo: "Torneo de Fútbol",
                 tipo: "futbol",
-                fecha: "Julio 2026",
+                fecha: "Del 18 al 25 de julio",
                 descripcion: "Clasificación de grupos, últimos resultados y cuadro de eliminatorias finales actualizados en tiempo real.",
                 enlace: "./Futbol/index.html" // Ruta relativa correspondiente a la nueva carpeta
             }
+            {
+                id: 4,
+                titulo: "Torneo de Tenis",
+                tipo: "tenis", 
+                fecha: "Del 18 al 25 de julio",
+                descripcion: "Breve descripción de los participantes o el evento.",
+                enlace: "./tenis/index.html"
+            }
+            
         ];
 
         const gridTorneos = document.getElementById('grid-torneos');
