@@ -33,7 +33,7 @@
         .nube-status { text-align: center; padding: 10px; font-size: 0.8em; color: #7f8c8d; }
 
         .bracket-wrapper { overflow-x: auto; padding-bottom: 20px; margin-bottom: 30px;}
-        .bracket-container { display: flex; flex-direction: row; gap: 20px; min-width: 650px; }
+        .bracket-container { display: flex; flex-direction: row; gap: 20px; min-width: 500px; }
         .bracket-column { display: flex; flex-direction: column; justify-content: space-around; gap: 15px; flex: 1; }
         .bracket-match { background: #fff; border: 2px solid #ecf0f1; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .bracket-header { background: #8e44ad; color: white; text-align: center; font-size: 0.75em; padding: 4px; font-weight: bold; text-transform: uppercase; }
@@ -155,14 +155,12 @@
 
             const getWName = (m, def) => (m && m.ganadorNombre) ? m.ganadorNombre : def;
 
-            let gA = clas.filter(c => c.categoria === cat && c.grupo === "Grupo A"); let gB = clas.filter(c => c.categoria === cat && c.grupo === "Grupo B"); let gC = clas.filter(c => c.categoria === cat && c.grupo === "Grupo C"); let gD = clas.filter(c => c.categoria === cat && c.grupo === "Grupo D");
+            let gA = clas.filter(c => c.categoria === cat && c.grupo === "Grupo A"); 
+            let gB = clas.filter(c => c.categoria === cat && c.grupo === "Grupo B"); 
 
             let p1A = gA.length > 0 ? gA[0].nombre : '1º Grupo A'; let p2A = gA.length > 1 ? gA[1].nombre : '2º Grupo A';
             let p1B = gB.length > 0 ? gB[0].nombre : '1º Grupo B'; let p2B = gB.length > 1 ? gB[1].nombre : '2º Grupo B';
-            let p1C = gC.length > 0 ? gC[0].nombre : '1º Grupo C'; let p2C = gC.length > 1 ? gC[1].nombre : '2º Grupo C';
-            let p1D = gD.length > 0 ? gD[0].nombre : '1º Grupo D'; let p2D = gD.length > 1 ? gD[1].nombre : '2º Grupo D';
 
-            let q1 = getM("1º A vs 2º C"); let q2 = getM("1º B vs 2º D"); let q3 = getM("1º C vs 2º A"); let q4 = getM("1º D vs 2º B");
             let s1 = getM("Semi 1"); let s2 = getM("Semi 2"); let f = getM("Final");
 
             html += `
@@ -170,14 +168,8 @@
             <div class="bracket-wrapper">
                 <div class="bracket-container">
                     <div class="bracket-column">
-                        <div class="bracket-match"><div class="bracket-header">Cuartos 1</div>${renderTeam(q1, 1, p1A)}${renderTeam(q1, 2, p2C)}</div>
-                        <div class="bracket-match"><div class="bracket-header">Cuartos 2</div>${renderTeam(q2, 1, p1B)}${renderTeam(q2, 2, p2D)}</div>
-                        <div class="bracket-match"><div class="bracket-header">Cuartos 3</div>${renderTeam(q3, 1, p1C)}${renderTeam(q3, 2, p2A)}</div>
-                        <div class="bracket-match"><div class="bracket-header">Cuartos 4</div>${renderTeam(q4, 1, p1D)}${renderTeam(q4, 2, p2B)}</div>
-                    </div>
-                    <div class="bracket-column">
-                        <div class="bracket-match"><div class="bracket-header" style="background:#9b59b6;">Semifinal 1</div>${renderTeam(s1, 1, getWName(q1, 'Ganador C1'))}${renderTeam(s1, 2, getWName(q2, 'Ganador C2'))}</div>
-                        <div class="bracket-match"><div class="bracket-header" style="background:#9b59b6;">Semifinal 2</div>${renderTeam(s2, 1, getWName(q3, 'Ganador C3'))}${renderTeam(s2, 2, getWName(q4, 'Ganador C4'))}</div>
+                        <div class="bracket-match"><div class="bracket-header" style="background:#9b59b6;">Semifinal 1</div>${renderTeam(s1, 1, p1A)}${renderTeam(s1, 2, p2B)}</div>
+                        <div class="bracket-match"><div class="bracket-header" style="background:#9b59b6;">Semifinal 2</div>${renderTeam(s2, 1, p1B)}${renderTeam(s2, 2, p2A)}</div>
                     </div>
                     <div class="bracket-column" style="justify-content: center;">
                         <div class="bracket-match" style="border-color:#f1c40f;"><div class="bracket-header" style="background:#f1c40f; color:#333;">GRAN FINAL</div>${renderTeam(f, 1, getWName(s1, 'Ganador S1'))}${renderTeam(f, 2, getWName(s2, 'Ganador S2'))}</div>
@@ -205,7 +197,7 @@
             if(pCat.length > 0) {
                 hGrupos += `<details class="cat-details"><summary class="cat-summary">Categoría ${cat}</summary>`;
                 
-                ["Grupo A", "Grupo B", "Grupo C", "Grupo D"].forEach(grp => {
+                ["Grupo A", "Grupo B"].forEach(grp => {
                     let pGrp = pCat.filter(p => p.grupo === grp);
                     if(pGrp.length > 0) {
                         hGrupos += `<details class="grp-details"><summary class="grp-summary">${grp}</summary><div class="matches-wrapper">`;
@@ -254,7 +246,7 @@
             if(statsCat.length > 0) {
                 htmlTotal += `<details class="cat-details"><summary class="cat-summary">Categoría ${cat}</summary><div style="padding-bottom: 15px;">`;
                 
-                ["Grupo A", "Grupo B", "Grupo C", "Grupo D"].forEach(grp => {
+                ["Grupo A", "Grupo B"].forEach(grp => {
                     let g = clas.filter(c => c.categoria === cat && c.grupo === grp);
                     if (g.length > 0) {
                         htmlTotal += `<h4 style="margin: 15px 15px 5px 15px; color: #2c3e50; border-bottom: 2px solid #27ae60; display: inline-block;">${grp}</h4>`;
