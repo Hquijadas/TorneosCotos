@@ -47,7 +47,7 @@
         .tab-content { display: none; } .tab-content.active { display: block; }
         .empty-state { text-align: center; color: var(--text-muted); padding: 40px 20px; }
         .bracket-wrapper { overflow-x: auto; padding-bottom: 20px; margin-bottom: 30px;}
-        .bracket-container { display: flex; flex-direction: row; gap: 20px; min-width: 900px; padding: 10px; }
+        .bracket-container { display: flex; flex-direction: row; gap: 20px; min-width: 700px; padding: 10px; }
         .bracket-column { display: flex; flex-direction: column; justify-content: space-around; gap: 15px; flex: 1; }
         .bracket-match { background: #fff; border: 2px solid #ecf0f1; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .bracket-header { background: #8e44ad; color: white; text-align: center; font-size: 0.75em; padding: 4px; font-weight: bold; text-transform: uppercase; }
@@ -87,7 +87,7 @@
 
         <div id="tab-clasificacion" class="tab-content">
             <h2 style="color: var(--text-main);">Clasificación</h2>
-            <p style="font-size: 0.85em; color: var(--text-muted);">Avanzan los 2 primeros a Octavos. Desempates: PG > JF > JC > Alfabeto.</p>
+            <p style="font-size: 0.85em; color: var(--text-muted);">Avanzan los 2 primeros a Cuartos de Final. Desempates: PG > JF > JC > Alfabeto.</p>
             <div id="contenedorClasificaciones"></div>
         </div>
 
@@ -145,7 +145,7 @@
     };
 
     let parejas = []; let partidos = [];
-    const gruposTorneo = ["Grupo A", "Grupo B", "Grupo C", "Grupo D", "Grupo E", "Grupo F", "Grupo G", "Grupo H"];
+    const gruposTorneo = ["Grupo A", "Grupo B", "Grupo C", "Grupo D"];
     let textoBusqueda = ""; let verSoloFavoritos = false; let miParejaFavoritaId = null;
 
     try {
@@ -309,10 +309,15 @@
             return html;
         };
 
-        let oct = pFinales.filter(p => p.ronda === "Octavos").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); let cua = pFinales.filter(p => p.ronda === "Cuartos").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); let sem = pFinales.filter(p => p.ronda === "Semifinal").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); let fin = pFinales.filter(p => p.ronda === "Final").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || ""));
+        // Extraer fases (con la nueva estructura la primera ronda de Fase Final es Cuartos)
+        let cua = pFinales.filter(p => p.ronda === "Cuartos").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); 
+        let sem = pFinales.filter(p => p.ronda === "Semifinal").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); 
+        let fin = pFinales.filter(p => p.ronda === "Final").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || ""));
 
         let html = `<div class="bracket-wrapper"><div class="bracket-container">`;
-        if(oct.length > 0) html += `<div class="bracket-column">${renderMatch("Octavos", oct, "#34495e")}</div>`; if(cua.length > 0 || oct.length > 0) html += `<div class="bracket-column">${renderMatch("Cuartos", cua, "#8e44ad")}</div>`; if(sem.length > 0 || cua.length > 0) html += `<div class="bracket-column">${renderMatch("Semifinal", sem, "#9b59b6")}</div>`; if(fin.length > 0 || sem.length > 0) html += `<div class="bracket-column" style="justify-content: center;">${renderMatch("Final", fin, "#e67e22")}</div>`;
+        if(cua.length > 0) html += `<div class="bracket-column">${renderMatch("Cuartos", cua, "#8e44ad")}</div>`; 
+        if(sem.length > 0 || cua.length > 0) html += `<div class="bracket-column">${renderMatch("Semifinal", sem, "#9b59b6")}</div>`; 
+        if(fin.length > 0 || sem.length > 0) html += `<div class="bracket-column" style="justify-content: center;">${renderMatch("Final", fin, "#e67e22")}</div>`;
         contenedor.innerHTML = html + `</div></div>`;
     }
 </script>
