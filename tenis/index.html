@@ -71,6 +71,30 @@
         .result-box { background: var(--bg-color); text-align: center; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1.2em; color: var(--accent); }
         .result-pending { color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 10px; background: #fafafa; border-radius: 8px; border: 1px dashed #ccc;}
         
+        /* ESTILOS DE HORARIO EN PARTIDOS */
+        .info-horario {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: #fdfefe;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.85em;
+        }
+        .pista-badge {
+            background: #2980b9;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.8em;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .pista-badge.final-pista {
+            background: #8e44ad;
+        }
+        
         /* CLASIFICACIONES */
         .group-container { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow-x: auto; }
         .group-container h3 { margin-top: 0; color: var(--text-main); border-bottom: 2px solid var(--primary-dark); padding-bottom: 5px; display: inline-block;}
@@ -151,7 +175,7 @@
             <h2 style="color: var(--text-main);">Reglamento del Torneo</h2>
             <div class="match-card" style="border-left-color: #3498db;">
                 <div class="match-header"><span>📍 Ubicación</span></div>
-                <div style="text-align: center; font-size: 1.1em; margin: 10px 0;"><b>Primera Fase y Segunda Fase</b></div>
+                <div style="text-align: center; font-size: 1.1em; margin: 10px 0;"><b>Club de Tenis / Pistas Principales</b></div>
             </div>
             <div class="group-container">
                 <h3 style="border-bottom-color: #3498db; color: #3498db;">📜 Reglas de Juego</h3>
@@ -181,9 +205,10 @@
     let parejas = []; 
     let partidos = [];
     let categoriasDisponibles = [];
-    let categoriaSeleccionada = ""; // Almacenará la categoría activa
+    let categoriaSeleccionada = "";
 
     const gruposTorneo = ["Grupo A", "Grupo B", "Grupo C", "Grupo D"]; 
+    const ordenDias = ["X 15", "J 16", "V 17", "S 18", "D 19", "L 20", "M 21", "X 22", "J 23", "V 24", "S 25"];
     let textoBusqueda = ""; 
     let verSoloFavoritos = false; 
     let miParejaFavoritaId = null;
@@ -243,16 +268,13 @@
         logEstado("🔴 ERROR CRÍTICO: " + e.message, "error");
     }
 
-    // EXTRAER Y SELECCIONAR CATEGORÍAS AUTOMÁTICAMENTE
     function actualizarCategoriasDinamicas() {
-        // Extraemos valores únicos del campo "categoria" de los inscritos y partidos
         let cats = new Set();
         parejas.forEach(p => { if (p.categoria) cats.add(p.categoria); });
         partidos.forEach(m => { if (m.categoria) cats.add(m.categoria); });
         
         categoriasDisponibles = Array.from(cats).sort();
 
-        // Si no se ha seleccionado ninguna todavía, cogemos la primera por defecto
         if (!categoriaSeleccionada && categoriasDisponibles.length > 0) {
             categoriaSeleccionada = categoriasDisponibles[0];
         }
@@ -277,7 +299,6 @@
 
     function cambiarCategoriaGlobal() {
         categoriaSeleccionada = document.getElementById('selectorCategoriaGlobal').value;
-        // Al cambiar de categoría, refrescamos todas las vistas con los nuevos datos filtrados
         filtrarYRenderizar();
         renderizarClasificaciones();
         renderizarBracketsPublicos();
@@ -316,15 +337,19 @@
     function filtrarYRenderizar() {
         try {
             textoBusqueda = (document.getElementById('buscadorPartidos').value || "").toLowerCase();
-            let partidosFiltrados = partidos.filter(m => {
-                // Filtro 1: Debe pertenecer a la categoría seleccionada actualmente
+            
+            // Ordenamos los partidos para que salgan primero los que tienen día y hora fijados, ordenados cronológicamente
+            let partidosOrdenados = [...partidos].sort((a, b) => {
+                if (!a.dia) return 1;
+                if (!b.dia) return -1;
+                if (a.dia !== b.dia) return ordenDias.indexOf(a.dia) - ordenDias.indexOf(b.dia);
+                return (a.hora || "").localeCompare(b.hora || "");
+            });
+
+            let partidosFiltrados = partidosOrdenados.filter(m => {
                 let coincideCategoria = (m.categoria === categoriaSeleccionada);
-                
-                // Filtro 2: Coincidencia por texto de búsqueda
                 let coincideTexto = true;
                 if (textoBusqueda !== "") coincideTexto = ((m.nombre1 || "").toLowerCase().includes(textoBusqueda)) || ((m.nombre2 || "").toLowerCase().includes(textoBusqueda));
-                
-                // Filtro 3: Coincidencia de Favoritos
                 let coincideFav = true;
                 if (verSoloFavoritos) coincideFav = (m.id1 === miParejaFavoritaId || m.id2 === miParejaFavoritaId);
                 
@@ -337,15 +362,12 @@
     // CLASIFICACIÓN
     function generarClasificacionArray() {
         let stats = {}; 
-        
-        // Filtramos parejas de la categoría seleccionada
         let parejasFiltradas = parejas.filter(p => p.categoria === categoriaSeleccionada);
         parejasFiltradas.forEach(p => { 
             if(p && p.id) stats[p.id] = { id: p.id, nombre: p.nombre || "Sin Nombre", grupo: p.grupo, pj: 0, pg: 0, pp: 0, jf: 0, jc: 0, dif: 0 }; 
         });
 
         partidos.forEach(m => {
-            // Solo procesamos los partidos jugados en fase de grupos de la categoría activa
             if (m && m.jugado && m.ronda === "Grupos" && m.categoria === categoriaSeleccionada && stats[m.id1] && stats[m.id2]) {
                 let s1 = stats[m.id1]; let s2 = stats[m.id2]; 
                 s1.pj++; s2.pj++; s1.jf += (m.juegos1 || 0); s1.jc += (m.juegos2 || 0); s2.jf += (m.juegos2 || 0); s2.jc += (m.juegos1 || 0);
@@ -353,8 +375,22 @@
             }
         });
         return Object.values(stats).map(s => { s.dif = s.jf - s.jc; return s; }).sort((a, b) => { 
-            if (b.pg !== a.pg) return b.pg - a.pg; if (b.jf !== a.jf) return b.jf - a.jf; if (a.jc !== b.jc) return a.jc - b.jc; return (a.nombre || "").localeCompare(b.nombre || ""); 
+            if (b.pg !== a.pg) return b.pg - a.pg; if (b.dif !== a.dif) return b.dif - a.dif; if (b.jf !== a.jf) return b.jf - a.jf; return (a.nombre || "").localeCompare(b.nombre || ""); 
         });
+    }
+
+    // GENERAR RECUADRO CON EL DÍA, HORA Y PISTA
+    function obtenerHtmlHorario(partido, esFinal = false) {
+        if (partido.dia && partido.hora) {
+            let clasePista = esFinal ? 'pista-badge final-pista' : 'pista-badge';
+            return `
+                <div class="info-horario">
+                    <span class="${clasePista}">${partido.pista || 'Sin Pista'}</span> 
+                    <span style="color: #2980b9; font-weight: bold;">🗓️ ${partido.dia} a las 🕒 ${partido.hora}</span>
+                </div>`;
+        } else {
+            return `<div class="result-pending" style="margin-top: 10px;">⚠️ Pendiente de asignar horario</div>`;
+        }
     }
 
     // RENDERIZAR VISTA DE PARTIDOS
@@ -367,8 +403,25 @@
                 hGrupos += `<details ${abrirDesplegables}><summary>${grp}</summary><div class="matches-wrapper">`;
                 pGrp.forEach(m => {
                     let esFav = (m.id1 === miParejaFavoritaId || m.id2 === miParejaFavoritaId); let claseFav = esFav ? "is-fav" : "";
-                    let resHtml = m.jugado ? `<div class="result-box">Sets: ${m.juegos1} - ${m.juegos2}</div>` : `<div class="result-pending">Pendiente de jugar</div>`;
-                    hGrupos += `<div class="match-card ${claseFav}"><div class="match-header"><span><span class="badge">Grupos</span></span> ${esFav ? '⭐ Mi Partido' : ''}</div><div class="teams"><b>${m.nombre1 || 'Por definir'}</b><span class="vs">VS</span><b>${m.nombre2 || 'Por definir'}</b></div>${resHtml}</div>`;
+                    
+                    // Si ya se ha jugado se enseña el resultado. Si no, se enseña el horario asignado (pista/fecha/hora).
+                    let resHtml = m.jugado 
+                        ? `<div class="result-box">Sets: ${m.juegos1} - ${m.juegos2}</div>` 
+                        : obtenerHtmlHorario(m, false);
+
+                    hGrupos += `
+                        <div class="match-card ${claseFav}">
+                            <div class="match-header">
+                                <span><span class="badge">Grupos</span></span> 
+                                ${esFav ? '⭐ Mi Partido' : ''}
+                            </div>
+                            <div class="teams">
+                                <b>${m.nombre1 || 'Por definir'}</b>
+                                <span class="vs">VS</span>
+                                <b>${m.nombre2 || 'Por definir'}</b>
+                            </div>
+                            ${resHtml}
+                        </div>`;
                 });
                 hGrupos += `</div></details>`;
             }
@@ -377,8 +430,25 @@
         let faseFinalFiltrada = partidosAMostrar.filter(p => p.ronda !== "Grupos").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || ""));
         faseFinalFiltrada.forEach(m => {
             let esFav = (m.id1 === miParejaFavoritaId || m.id2 === miParejaFavoritaId); let claseFav = esFav ? "is-fav" : "";
-            let resHtml = m.jugado ? `<div class="result-box" style="color:var(--accent);">Sets: ${m.juegos1} - ${m.juegos2}</div>` : `<div class="result-pending">Pendiente de jugar</div>`;
-            hFinal += `<div class="match-card final ${claseFav}"><div class="match-header"><span><span class="badge" style="background:var(--accent); color:white;">${m.cruce || 'Eliminatoria'}</span></span> ${esFav ? '⭐ Mi Partido' : ''}</div><div class="teams"><b>${m.nombre1 || 'Por definir'}</b><span class="vs">VS</span><b>${m.nombre2 || 'Por definir'}</b></div>${resHtml}</div>`;
+            
+            // Si ya se ha jugado se enseña el resultado por Sets. Si no, el horario programado.
+            let resHtml = m.jugado 
+                ? `<div class="result-box" style="color:var(--accent);">Sets: ${m.resultadoSets || (m.juegos1 + ' - ' + m.juegos2)}</div>` 
+                : obtenerHtmlHorario(m, true);
+
+            hFinal += `
+                <div class="match-card final ${claseFav}">
+                    <div class="match-header">
+                        <span><span class="badge" style="background:var(--accent); color:white;">${m.cruce || 'Eliminatoria'}</span></span> 
+                        ${esFav ? '⭐ Mi Partido' : ''}
+                    </div>
+                    <div class="teams">
+                        <b>${m.nombre1 || 'Por definir'}</b>
+                        <span class="vs">VS</span>
+                        <b>${m.nombre2 || 'Por definir'}</b>
+                    </div>
+                    ${resHtml}
+                </div>`;
         });
         document.getElementById('contenedorPartidos').innerHTML = hGrupos || `<div class="empty-state">No hay partidos para esta categoría/búsqueda.</div>`; 
         document.getElementById('contenedorFaseFinal').innerHTML = hFinal || `<div class="empty-state">No se están jugando eliminatorias en esta categoría.</div>`;
@@ -405,7 +475,6 @@
     function renderizarBracketsPublicos() {
         const contenedor = document.getElementById('contenedorBracketsPublicos'); 
         
-        // Filtramos eliminatorias solo de la categoría activa
         let pFinales = partidos.filter(p => p.ronda !== "Grupos" && p.categoria === categoriaSeleccionada);
         if (pFinales.length === 0) return contenedor.innerHTML = `<div class="empty-state">El cuadro final se generará tras la fase de grupos de esta categoría.</div>`;
 
