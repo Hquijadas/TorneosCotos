@@ -175,12 +175,12 @@
             <h2 style="color: var(--text-main);">Reglamento del Torneo</h2>
             <div class="match-card" style="border-left-color: #3498db;">
                 <div class="match-header"><span>📍 Ubicación</span></div>
-                <div style="text-align: center; font-size: 1.1em; margin: 10px 0;"><b>Pistas 1 y 2 4ª Fase y Pista 5ª Fase</b></div>
+                <div style="text-align: center; font-size: 1.1em; margin: 10px 0;"><b>Pistas del Torneo de Pádel</b></div>
             </div>
             <div class="group-container">
                 <h3 style="border-bottom-color: #3498db; color: #3498db;">📜 Reglas de Juego</h3>
                 <ul style="padding-left: 20px; line-height: 1.6; color: var(--text-main);">
-                    <li>Los partidos de grupos se jugarán al que<b> llegue a 9 juegos.</b></li>
+                    <li>Los partidos de grupos se jugarán al mejor de los juegos/sets configurados por la organización.</li>
                     <li>En la Fase Final, los partidos se disputarán al mejor de <b>3 sets con Super Tie-Break</b> en caso de empate a un set.</li>
                     <li>Se ruega máxima puntualidad en las pistas asignadas (pistas 1, 2 y 5ª Fase).</li>
                 </ul>
@@ -204,7 +204,7 @@
 
     let parejas = []; 
     let partidos = [];
-    let categoriaSeleccionada = "MascOro"; // Categoría por defecto
+    let categoriaSeleccionada = "MascOro"; 
 
     const nombresCategorias = {
         "MascOro": "Masculino Oro",
@@ -369,7 +369,7 @@
     function renderizarPartidos(partidosAMostrar) {
         let hGrupos = ""; let hFinal = ""; let abrirDesplegables = (textoBusqueda !== "" || verSoloFavoritos) ? "open" : "";
         
-        const gruposPosibles = (categoriaSeleccionada === "FemOro") ? ["Grupo A"] : (categoriaSeleccionada === "Infantil") ? ["Grupo A", "Grupo B"] : ["Grupo A", "Grupo B", "Grupo C", "Grupo D"];
+        const gruposPosibles = (categoriaSeleccionada === "FemOro" || categoriaSeleccionada === "FemPlata" || categoriaSeleccionada === "Infantil") ? ["Grupo A", "Grupo B"] : ["Grupo A", "Grupo B", "Grupo C", "Grupo D"];
 
         gruposPosibles.forEach(grp => {
             let pGrp = partidosAMostrar.filter(p => p.ronda === "Grupos" && p.grupo === grp);
@@ -411,7 +411,7 @@
             hFinal += `
                 <div class="match-card final ${claseFav}">
                     <div class="match-header">
-                        <span><span class="badge" style="background:var(--accent); color:white;">${m.cruce || 'Eliminatoria'}</span></span> 
+                        <span><span class="badge" style="background:var(--accent); color:white;">${nombresCategorias[m.categoria]} - ${m.cruce}</span></span> 
                         ${esFav ? '⭐ Mi Partido' : ''}
                     </div>
                     <div class="teams">
@@ -428,7 +428,7 @@
 
     function renderizarClasificaciones() {
         let clas = generarClasificacionArray(); let html = "";
-        const gruposPosibles = (categoriaSeleccionada === "FemOro") ? ["Grupo A"] : (categoriaSeleccionada === "Infantil") ? ["Grupo A", "Grupo B"] : ["Grupo A", "Grupo B", "Grupo C", "Grupo D"];
+        const gruposPosibles = (categoriaSeleccionada === "FemOro" || categoriaSeleccionada === "FemPlata" || categoriaSeleccionada === "Infantil") ? ["Grupo A", "Grupo B"] : ["Grupo A", "Grupo B", "Grupo C", "Grupo D"];
 
         gruposPosibles.forEach(grp => {
             let g = clas.filter(c => c.grupo === grp);
@@ -462,10 +462,7 @@
 
         let html = `<div class="bracket-wrapper"><div class="bracket-container">`;
 
-        if (categoriaSeleccionada === "FemOro") {
-            let fin = pFinales.filter(p => p.ronda === "Fase Final" && p.cruce === "Final").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || ""));
-            if(fin.length > 0) html += `<div class="bracket-column" style="justify-content: center;">${renderMatch("Final", fin, "#e67e22")}</div>`;
-        } else if (categoriaSeleccionada === "Infantil") {
+        if (categoriaSeleccionada === "FemOro" || categoriaSeleccionada === "FemPlata" || categoriaSeleccionada === "Infantil") {
             let sem = pFinales.filter(p => p.ronda === "Fase Final" && (p.cruce === "Semi 1" || p.cruce === "Semi 2")).sort((a,b) => (a.cruce || "").localeCompare(b.cruce || ""));
             let fin = pFinales.filter(p => p.ronda === "Fase Final" && p.cruce === "Final").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || ""));
             if(sem.length > 0) html += `<div class="bracket-column">${renderMatch("Semifinal", sem, "#9b59b6")}</div>`; 
