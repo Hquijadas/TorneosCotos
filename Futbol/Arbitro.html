@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Panel del Árbitro - Torneo de Fútbol</title>
+    <style>
+        :root { 
+            --primary: #e67e22; /* Naranja para diferenciarlo del admin y publico */
+            --primary-dark: #d35400; 
+            --bg-color: #f4f7f6; 
+            --card-bg: #ffffff; 
+            --text-main: #2c3e50; 
+            --text-muted: #7f8c8d; 
+            --success: #27ae60;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 0; 
+            padding-bottom: 30px; 
+        }
+        .header { 
+            background-color: var(--text-main); 
+            color: white; 
+            padding: 20px 15px; 
+            text-align: center; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
+        }
+        .header h1 { margin: 0; font-size: 1.4em; } 
+        .header p { margin: 5px 0 0 0; font-size: 0.9em; color: var(--primary); font-weight: bold;}
+        
+        .container { padding: 15px; max-width: 600px; margin: 0 auto; }
+        
+        .nube-status { 
+            text-align: center; 
+            padding: 10px; 
+            font-size: 0.85em; 
+            color: #7f8c8d; 
+            background: #fcf3cf; 
+            margin-bottom: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .nube-status.success { background: #d4efdf; color: #1e8449; }
+
+        .match-card { 
+            background: var(--card-bg); 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+            border-left: 6px solid var(--primary); 
+        }
+        .match-card.final { border-left-color: #8e44ad; }
+        
+        .match-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            font-size: 0.9em; 
+            margin-bottom: 15px; 
+            border-bottom: 1px solid #eee; 
+            padding-bottom: 10px; 
+        }
+        .badge { background: #eee; padding: 4px 10px; border-radius: 12px; font-weight: bold; color: var(--text-main);}
+        
+        .info-horario {
+            font-size: 0.9em;
+            color: var(--primary-dark);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .teams { text-align: center; font-size: 1.2em; margin: 15px 0; display: flex; justify-content: space-between; align-items: center;} 
+        .team-name { flex: 1; font-weight: bold; }
+        .vs { color: #bdc3c7; font-size: 0.8em; margin: 0 10px; }
+
+        /* Controles de entrada de datos */
+        .input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            background: #f8f9f9;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        input[type="number"] { 
+            width: 70px; 
+            height: 50px; 
+            font-size: 1.5em; 
+            text-align: center; 
+            font-weight: bold; 
+            border: 2px solid #ccc; 
+            border-radius: 8px; 
+            outline: none;
+        }
+        input[type="number"]:focus { border-color: var(--primary); }
+
+        input[type="text"].input-final, select.select-final {
+            width: 100%;
+            padding: 12px;
+            font-size: 1em;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        button.btn-save { 
+            width: 100%; 
+            padding: 15px; 
+            font-size: 1.1em; 
+            font-weight: bold; 
+            color: white; 
+            background-color: var(--success); 
+            border: none; 
+            border-radius: 8px; 
+            margin-top: 15px; 
+            cursor: pointer; 
+            transition: background-color 0.2s;
+        }
+        button.btn-save:active { background-color: #1e8449; }
+
+        .empty-state { text-align: center; color: var(--text-muted); padding: 40px 20px; font-size: 1.1em; }
+    </style>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <div class="header">
+        <h1>⏱️ App del Árbitro</h1>
+        <p>Actualización de Resultados en Directo</p>
+    </div>
+
+    <div class="container">
+        <div class="nube-status" id="statusNube">☁️ Conectando a la base de datos...</div>
+        
+        <h2 style="color: var(--text-main); border-bottom: 2px solid #ccc; padding-bottom: 10px;">Partidos Pendientes</h2>
+        
+        <div id="contenedorPartidos">
+            </div>
+    </div>
+
+<script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAEsULVtB_DGK65CseESvzAunU3_MjjaiI",
+      authDomain: "padel-4d591.firebaseapp.com",
+      projectId: "padel-4d591",
+      storageBucket: "padel-4d591.firebasestorage.app",
+      messagingSenderId: "8047356944",
+      appId: "1:8047356944:web:db6ea9e5d99ba371b2ae95",
+      measurementId: "G-1T4924FJ7E"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let partidos = [];
+    const ordenDias = ["J 16", "V 17", "S 18", "D 19", "L 20", "M 21", "X 22", "J 23", "V 24", "S 25"];
+
+    // Escuchar solo los partidos en tiempo real
+    db.collection("partidos_futbol").onSnapshot((qs) => { 
+        partidos = []; 
+        qs.forEach((doc) => { partidos.push(doc.data()); }); 
+        
+        const statusBox = document.getElementById('statusNube');
+        statusBox.innerHTML = "🟢 Conectado y Sincronizado"; 
+        statusBox.className = "nube-status success";
+        
+        renderizarPartidosPendientes();
+    }, (err) => {
+        document.getElementById('statusNube').innerHTML = "🔴 Error de conexión: " + err.message;
+        document.getElementById('statusNube').className = "nube-status";
+    });
+
+    function renderizarPartidosPendientes() {
+        const contenedor = document.getElementById('contenedorPartidos');
+        
+        // 1. Filtrar solo los NO jugados
+        let pendientes = partidos.filter(p => !p.jugado);
+
+        // 2. Ordenar por Día y Hora (como pidió el usuario)
+        pendientes.sort((a, b) => {
+            // Si alguno no tiene día asignado, lo mandamos al final
+            if (!a.dia && b.dia) return 1;
+            if (a.dia && !b.dia) return -1;
+            if (!a.dia && !b.dia) return 0;
+
+            // Ordenar usando el array de ordenDias
+            let indexA = ordenDias.indexOf(a.dia);
+            let indexB = ordenDias.indexOf(b.dia);
+            
+            if (indexA !== indexB) {
+                return indexA - indexB;
+            }
+            
+            // Si es el mismo día, ordenamos por hora
+            return (a.hora || "").localeCompare(b.hora || "");
+        });
+
+        if (pendientes.length === 0) {
+            contenedor.innerHTML = `<div class="empty-state">🎉 ¡Todo al día! No hay partidos pendientes de arbitrar.</div>`;
+            return;
+        }
+
+        let html = "";
+
+        pendientes.forEach(m => {
+            let esFaseFinal = m.ronda !== "Grupos";
+            let claseTarjeta = esFaseFinal ? "match-card final" : "match-card";
+            let badgeTexto = esFaseFinal ? m.cruce : m.grupo;
+            let badgeStyle = esFaseFinal ? 'background:#8e44ad; color:white;' : '';
+            
+            let infoHorario = m.dia 
+                ? `<div class="info-horario">🗓️ ${m.dia} - 🕒 ${m.hora} <br> 📍 ${m.pista || 'Sin pista'}</div>` 
+                : `<div class="info-horario" style="color:#e74c3c;">⚠️ Sin horario asignado</div>`;
+
+            // HTML de los controles dependiendo de si es Grupo o Eliminatoria
+            let controlesHtml = "";
+            if (!esFaseFinal) {
+                // Controles para fase de grupos (Liguilla)
+                controlesHtml = `
+                    <div class="input-group">
+                        <input type="number" id="g1-${m.id}" placeholder="0" min="0">
+                        <span style="font-size: 1.5em; font-weight:bold; color:#bdc3c7;">-</span>
+                        <input type="number" id="g2-${m.id}" placeholder="0" min="0">
+                    </div>
+                    <button class="btn-save" onclick="guardarResultadoLiguilla('${m.id}')">Guardar Resultado Oficial</button>
+                `;
+            } else {
+                // Controles para Fase Final (Penaltis, pases, etc.)
+                controlesHtml = `
+                    <div style="margin-top: 15px; background: #fdf2e9; padding: 15px; border-radius: 8px; border: 1px dashed #e67e22;">
+                        <input type="text" id="resSets-${m.id}" class="input-final" placeholder="Resultado (Ej: 2-2 Pen 4-3)">
+                        <select id="ganador-${m.id}" class="select-final">
+                            <option value="">-- Selecciona el equipo que PASA --</option>
+                            <option value="${m.id1}|${m.nombre1}">${m.nombre1}</option>
+                            <option value="${m.id2}|${m.nombre2}">${m.nombre2}</option>
+                        </select>
+                    </div>
+                    <button class="btn-save" style="background-color: #8e44ad;" onclick="guardarResultadoEliminatoria('${m.id}')">Confirmar Pase de Ronda</button>
+                `;
+            }
+
+            html += `
+                <div class="${claseTarjeta}">
+                    <div class="match-header">
+                        <span class="badge" style="${badgeStyle}">${m.categoria} - ${badgeTexto}</span>
+                        ${infoHorario}
+                    </div>
+                    <div class="teams">
+                        <div class="team-name" style="text-align: right;">${m.nombre1}</div>
+                        <div class="vs">VS</div>
+                        <div class="team-name" style="text-align: left;">${m.nombre2}</div>
+                    </div>
+                    ${controlesHtml}
+                </div>
+            `;
+        });
+
+        contenedor.innerHTML = html;
+    }
+
+    // Lógica para guardar partidos de grupos
+    function guardarResultadoLiguilla(id) { 
+        const g1 = document.getElementById(`g1-${id}`).value;
+        const g2 = document.getElementById(`g2-${id}`).value;
+        
+        if(g1 === "" || g2 === "") {
+            alert("Por favor, introduce los goles de ambos equipos.");
+            return;
+        }
+
+        if(confirm(`¿Confirmas el resultado final ${g1} - ${g2}?`)) {
+            db.collection("partidos_futbol").doc(id).update({ 
+                goles1: parseInt(g1) || 0, 
+                goles2: parseInt(g2) || 0, 
+                jugado: true 
+            }); 
+        }
+    }
+
+    // Lógica para guardar partidos de fase final (con avance de brackets automático)
+    function guardarResultadoEliminatoria(idPartido) {
+        const resultadoStr = document.getElementById(`resSets-${idPartido}`).value.trim();
+        const ganadorVal = document.getElementById(`ganador-${idPartido}`).value;
+        
+        if(!resultadoStr || !ganadorVal) {
+            alert("Debes escribir el resultado y seleccionar quién avanza de ronda.");
+            return;
+        }
+
+        if(!confirm(`¿Confirmas este resultado y el equipo que pasa a la siguiente fase?`)) return;
+
+        const [ganadorId, ganadorNombre] = ganadorVal.split("|");
+        
+        const avanzaA = {
+            "Semi 1": { next: "Final", pos: 1 }, 
+            "Semi 2": { next: "Final", pos: 2 }
+        };
+
+        db.collection("partidos_futbol").doc(idPartido).update({ 
+            resultadoSets: resultadoStr, 
+            ganadorId: ganadorId, 
+            ganadorNombre: ganadorNombre, 
+            jugado: true 
+        }).then(() => {
+            let match = partidos.find(p => p.id === idPartido);
+            if(match && avanzaA[match.cruce]) {
+                let ruta = avanzaA[match.cruce];
+                let nextMatch = partidos.find(p => p.categoria === match.categoria && p.ronda === "Fase Final" && p.cruce === ruta.next);
+                
+                if (nextMatch) {
+                    let updateData = {}; 
+                    if (ruta.pos === 1) { 
+                        updateData.id1 = ganadorId; updateData.nombre1 = ganadorNombre; 
+                    } else { 
+                        updateData.id2 = ganadorId; updateData.nombre2 = ganadorNombre; 
+                    }
+                    db.collection("partidos_futbol").doc(nextMatch.id).update(updateData);
+                } else {
+                    let newId = "FF-" + Date.now().toString() + Math.floor(Math.random()*1000);
+                    let newData = { 
+                        id: newId, 
+                        id1: ruta.pos === 1 ? ganadorId : "", nombre1: ruta.pos === 1 ? ganadorNombre : "Por definir", 
+                        id2: ruta.pos === 2 ? ganadorId : "", nombre2: ruta.pos === 2 ? ganadorNombre : "Por definir", 
+                        categoria: match.categoria, grupo: "Fase Final", ronda: "Fase Final", cruce: ruta.next, 
+                        jugado: false, goles1: 0, goles2: 0, resultadoSets: "", dia: "", hora: "", pista: "" 
+                    };
+                    db.collection("partidos_futbol").doc(newId).set(newData);
+                }
+            }
+        });
+    }
+</script>
+</body>
+</html>
