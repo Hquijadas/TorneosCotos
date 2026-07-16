@@ -6,13 +6,14 @@
     <title>Panel del Árbitro - Torneo de Fútbol</title>
     <style>
         :root { 
-            --primary: #e67e22; /* Naranja para diferenciarlo del admin y publico */
+            --primary: #e67e22; 
             --primary-dark: #d35400; 
             --bg-color: #f4f7f6; 
             --card-bg: #ffffff; 
             --text-main: #2c3e50; 
             --text-muted: #7f8c8d; 
             --success: #27ae60;
+            --btn-gray: #ecf0f1;
         }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
@@ -21,6 +22,7 @@
             margin: 0; 
             padding: 0; 
             padding-bottom: 30px; 
+            user-select: none; /* Evita que el texto se seleccione al hacer toques rápidos */
         }
         .header { 
             background-color: var(--text-main); 
@@ -83,29 +85,56 @@
         .team-name { flex: 1; font-weight: bold; }
         .vs { color: #bdc3c7; font-size: 0.8em; margin: 0 10px; }
 
-        /* Controles de entrada de datos */
-        .input-group {
+        /* NUEVOS ESTILOS PARA LOS MARCADORES */
+        .score-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9f9;
+            padding: 15px 10px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .score-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-counter {
+            width: 45px;
+            height: 45px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--text-main);
+            background-color: var(--btn-gray);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px;
-            margin-top: 15px;
-            background: #f8f9f9;
-            padding: 15px;
-            border-radius: 8px;
+            transition: background-color 0.1s;
         }
-        
-        input[type="number"] { 
-            width: 70px; 
-            height: 50px; 
-            font-size: 1.5em; 
-            text-align: center; 
-            font-weight: bold; 
-            border: 2px solid #ccc; 
-            border-radius: 8px; 
-            outline: none;
+        .btn-counter:active { background-color: #bdc3c7; transform: scale(0.95); }
+        .btn-counter.add { background-color: #d4efdf; color: #1e8449; }
+        .btn-counter.add:active { background-color: #a9dfbf; }
+        .btn-counter.sub { background-color: #fadbd8; color: #c0392b; }
+        .btn-counter.sub:active { background-color: #f5b7b1; }
+
+        .score-display {
+            font-size: 2em;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: center;
         }
-        input[type="number"]:focus { border-color: var(--primary); }
+
+        .score-divider {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #bdc3c7;
+        }
 
         input[type="text"].input-final, select.select-final {
             width: 100%;
@@ -171,7 +200,6 @@
     let partidos = [];
     const ordenDias = ["J 16", "V 17", "S 18", "D 19", "L 20", "M 21", "X 22", "J 23", "V 24", "S 25"];
 
-    // Escuchar solo los partidos en tiempo real
     db.collection("partidos_futbol").onSnapshot((qs) => { 
         partidos = []; 
         qs.forEach((doc) => { partidos.push(doc.data()); }); 
@@ -186,28 +214,33 @@
         document.getElementById('statusNube').className = "nube-status";
     });
 
+    // Función para manejar los botones de suma y resta
+    function cambiarMarcador(idPartido, equipoNum, cantidad) {
+        const marcadorElement = document.getElementById(`g${equipoNum}-${idPartido}`);
+        let valorActual = parseInt(marcadorElement.innerText) || 0;
+        let nuevoValor = valorActual + cantidad;
+        
+        // Evitamos que haya goles negativos
+        if (nuevoValor < 0) nuevoValor = 0; 
+        
+        marcadorElement.innerText = nuevoValor;
+    }
+
     function renderizarPartidosPendientes() {
         const contenedor = document.getElementById('contenedorPartidos');
         
-        // 1. Filtrar solo los NO jugados
         let pendientes = partidos.filter(p => !p.jugado);
 
-        // 2. Ordenar por Día y Hora (como pidió el usuario)
         pendientes.sort((a, b) => {
-            // Si alguno no tiene día asignado, lo mandamos al final
             if (!a.dia && b.dia) return 1;
             if (a.dia && !b.dia) return -1;
             if (!a.dia && !b.dia) return 0;
 
-            // Ordenar usando el array de ordenDias
             let indexA = ordenDias.indexOf(a.dia);
             let indexB = ordenDias.indexOf(b.dia);
             
-            if (indexA !== indexB) {
-                return indexA - indexB;
-            }
+            if (indexA !== indexB) return indexA - indexB;
             
-            // Si es el mismo día, ordenamos por hora
             return (a.hora || "").localeCompare(b.hora || "");
         });
 
@@ -228,20 +261,28 @@
                 ? `<div class="info-horario">🗓️ ${m.dia} - 🕒 ${m.hora} <br> 📍 ${m.pista || 'Sin pista'}</div>` 
                 : `<div class="info-horario" style="color:#e74c3c;">⚠️ Sin horario asignado</div>`;
 
-            // HTML de los controles dependiendo de si es Grupo o Eliminatoria
             let controlesHtml = "";
             if (!esFaseFinal) {
-                // Controles para fase de grupos (Liguilla)
+                // Nuevo panel de botones +/-
                 controlesHtml = `
-                    <div class="input-group">
-                        <input type="number" id="g1-${m.id}" placeholder="0" min="0">
-                        <span style="font-size: 1.5em; font-weight:bold; color:#bdc3c7;">-</span>
-                        <input type="number" id="g2-${m.id}" placeholder="0" min="0">
+                    <div class="score-panel">
+                        <div class="score-control">
+                            <button class="btn-counter sub" onclick="cambiarMarcador('${m.id}', 1, -1)">-</button>
+                            <span id="g1-${m.id}" class="score-display">0</span>
+                            <button class="btn-counter add" onclick="cambiarMarcador('${m.id}', 1, 1)">+</button>
+                        </div>
+                        
+                        <div class="score-divider">:</div>
+                        
+                        <div class="score-control">
+                            <button class="btn-counter sub" onclick="cambiarMarcador('${m.id}', 2, -1)">-</button>
+                            <span id="g2-${m.id}" class="score-display">0</span>
+                            <button class="btn-counter add" onclick="cambiarMarcador('${m.id}', 2, 1)">+</button>
+                        </div>
                     </div>
                     <button class="btn-save" onclick="guardarResultadoLiguilla('${m.id}')">Guardar Resultado Oficial</button>
                 `;
             } else {
-                // Controles para Fase Final (Penaltis, pases, etc.)
                 controlesHtml = `
                     <div style="margin-top: 15px; background: #fdf2e9; padding: 15px; border-radius: 8px; border: 1px dashed #e67e22;">
                         <input type="text" id="resSets-${m.id}" class="input-final" placeholder="Resultado (Ej: 2-2 Pen 4-3)">
@@ -274,16 +315,11 @@
         contenedor.innerHTML = html;
     }
 
-    // Lógica para guardar partidos de grupos
+    // Ahora lee el texto interior (innerText) en lugar del valor de un input
     function guardarResultadoLiguilla(id) { 
-        const g1 = document.getElementById(`g1-${id}`).value;
-        const g2 = document.getElementById(`g2-${id}`).value;
+        const g1 = document.getElementById(`g1-${id}`).innerText;
+        const g2 = document.getElementById(`g2-${id}`).innerText;
         
-        if(g1 === "" || g2 === "") {
-            alert("Por favor, introduce los goles de ambos equipos.");
-            return;
-        }
-
         if(confirm(`¿Confirmas el resultado final ${g1} - ${g2}?`)) {
             db.collection("partidos_futbol").doc(id).update({ 
                 goles1: parseInt(g1) || 0, 
@@ -293,7 +329,6 @@
         }
     }
 
-    // Lógica para guardar partidos de fase final (con avance de brackets automático)
     function guardarResultadoEliminatoria(idPartido) {
         const resultadoStr = document.getElementById(`resSets-${idPartido}`).value.trim();
         const ganadorVal = document.getElementById(`ganador-${idPartido}`).value;
