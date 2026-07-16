@@ -6,8 +6,8 @@
     <title>App del Torneo de Tenis</title>
     <style>
         :root { 
-            --primary: #39ff14; /* Verde tenis / neón */
-            --primary-dark: #2cba0e; 
+            --primary: #27ae60; /* Verde profesional de tenis */
+            --primary-dark: #219150; 
             --bg-color: #f4f6f7; 
             --card-bg: #ffffff; 
             --text-main: #1a252f; 
@@ -68,7 +68,8 @@
         .match-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; color: var(--text-muted); margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         .badge { background: #eee; padding: 3px 8px; border-radius: 10px; font-weight: bold; color: var(--text-main);}
         .teams { text-align: center; font-size: 1.1em; margin: 15px 0; } .teams b { display: block; margin: 5px 0; } .vs { color: #bdc3c7; font-size: 0.8em; font-weight: bold; }
-        .result-box { background: var(--bg-color); text-align: center; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1.2em; color: var(--accent); }
+        .result-box { background: var(--bg-color); text-align: center; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 1.2em; color: var(--primary-dark); }
+        .result-box.final-res { color: var(--accent); }
         .result-pending { color: var(--text-muted); font-size: 0.9em; text-align: center; padding: 10px; background: #fafafa; border-radius: 8px; border: 1px dashed #ccc;}
         
         /* ESTILOS DE HORARIO EN PARTIDOS */
@@ -111,7 +112,7 @@
         
         /* CUADROS EN FASE FINAL (BRACKETS) */
         .bracket-wrapper { overflow-x: auto; padding-bottom: 20px; margin-bottom: 30px;}
-        .bracket-container { display: flex; flex-direction: row; gap: 20px; min-width: 900px; padding: 10px; }
+        .bracket-container { display: flex; flex-direction: row; gap: 20px; min-width: 650px; padding: 10px; }
         .bracket-column { display: flex; flex-direction: column; justify-content: space-around; gap: 15px; flex: 1; }
         .bracket-match { background: #fff; border: 2px solid #ecf0f1; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .bracket-header { background: var(--accent); color: white; text-align: center; font-size: 0.75em; padding: 4px; font-weight: bold; text-transform: uppercase; }
@@ -159,7 +160,7 @@
 
         <div id="tab-clasificacion" class="tab-content">
             <h2 style="color: var(--text-main);">Clasificación General</h2>
-            <p style="font-size: 0.85em; color: var(--text-muted);">Avanzan los mejores de cada grupo. Criterio: PG > SF > SC > Diferencia.</p>
+            <p style="font-size: 0.85em; color: var(--text-muted);">Avanzan los mejores de cada grupo. Criterio: PG > SF > SC > Diferencia(J).</p>
             <div id="contenedorClasificaciones"></div>
         </div>
 
@@ -358,23 +359,38 @@
         } catch (e) { logEstado("🔴 Error en la búsqueda: " + e.message, "error"); }
     }
 
-    // CLASIFICACIÓN
+    // CLASIFICACIÓN ADAPTADA AL TENIS
     function generarClasificacionArray() {
         let stats = {}; 
         let parejasFiltradas = parejas.filter(p => p.categoria === categoriaSeleccionada);
         parejasFiltradas.forEach(p => { 
-            if(p && p.id) stats[p.id] = { id: p.id, nombre: p.nombre || "Sin Nombre", grupo: p.grupo, pj: 0, pg: 0, pp: 0, jf: 0, jc: 0, dif: 0 }; 
+            if(p && p.id) stats[p.id] = { id: p.id, nombre: p.nombre || "Sin Nombre", grupo: p.grupo, pj: 0, pg: 0, pp: 0, sf: 0, sc: 0, jf: 0, jc: 0, sdif: 0, dif: 0 }; 
         });
 
         partidos.forEach(m => {
             if (m && m.jugado && m.ronda === "Grupos" && m.categoria === categoriaSeleccionada && stats[m.id1] && stats[m.id2]) {
                 let s1 = stats[m.id1]; let s2 = stats[m.id2]; 
-                s1.pj++; s2.pj++; s1.jf += (m.juegos1 || 0); s1.jc += (m.juegos2 || 0); s2.jf += (m.juegos2 || 0); s2.jc += (m.juegos1 || 0);
-                if (m.juegos1 > m.juegos2) { s1.pg++; s2.pp++; } else if (m.juegos2 > m.juegos1) { s2.pg++; s1.pp++; }
+                
+                s1.pj++; s2.pj++; 
+                s1.jf += (m.juegos1 || 0); s1.jc += (m.juegos2 || 0); 
+                s2.jf += (m.juegos2 || 0); s2.jc += (m.juegos1 || 0);
+                s1.sf += (m.sets1 || 0); s1.sc += (m.sets2 || 0);
+                s2.sf += (m.sets2 || 0); s2.sc += (m.sets1 || 0);
+
+                if ((m.sets1 || 0) > (m.sets2 || 0)) { s1.pg++; s2.pp++; } 
+                else if ((m.sets2 || 0) > (m.sets1 || 0)) { s2.pg++; s1.pp++; }
             }
         });
-        return Object.values(stats).map(s => { s.dif = s.jf - s.jc; return s; }).sort((a, b) => { 
-            if (b.pg !== a.pg) return b.pg - a.pg; if (b.dif !== a.dif) return b.dif - a.dif; if (b.jf !== a.jf) return b.jf - a.jf; return (a.nombre || "").localeCompare(b.nombre || ""); 
+        
+        return Object.values(stats).map(s => { 
+            s.sdif = s.sf - s.sc; 
+            s.dif = s.jf - s.jc; 
+            return s; 
+        }).sort((a, b) => { 
+            if (b.pg !== a.pg) return b.pg - a.pg; // 1. Ordenar por partidos ganados
+            if (b.sdif !== a.sdif) return b.sdif - a.sdif; // 2. Ordenar por diferencia de sets
+            if (b.dif !== a.dif) return b.dif - a.dif; // 3. Ordenar por diferencia de juegos
+            return (a.nombre || "").localeCompare(b.nombre || ""); 
         });
     }
 
@@ -403,9 +419,8 @@
                 pGrp.forEach(m => {
                     let esFav = (m.id1 === miParejaFavoritaId || m.id2 === miParejaFavoritaId); let claseFav = esFav ? "is-fav" : "";
                     
-                    // Si ya se ha jugado se enseña el resultado. Si no, se enseña el horario asignado (pista/fecha/hora).
                     let resHtml = m.jugado 
-                        ? `<div class="result-box">Sets: ${m.juegos1} - ${m.juegos2}</div>` 
+                        ? `<div class="result-box">${m.resultadoSets}</div>` 
                         : obtenerHtmlHorario(m, false);
 
                     hGrupos += `
@@ -430,9 +445,8 @@
         faseFinalFiltrada.forEach(m => {
             let esFav = (m.id1 === miParejaFavoritaId || m.id2 === miParejaFavoritaId); let claseFav = esFav ? "is-fav" : "";
             
-            // Si ya se ha jugado se enseña el resultado por Sets. Si no, el horario programado.
             let resHtml = m.jugado 
-                ? `<div class="result-box" style="color:var(--accent);">Sets: ${m.resultadoSets || (m.juegos1 + ' - ' + m.juegos2)}</div>` 
+                ? `<div class="result-box final-res">${m.resultadoSets}</div>` 
                 : obtenerHtmlHorario(m, true);
 
             hFinal += `
@@ -459,10 +473,10 @@
         gruposTorneo.forEach(grp => {
             let g = clas.filter(c => c.grupo === grp);
             if (g.length > 0) {
-                let h = `<div class="group-container"><h3>${grp}</h3><table><tr><th class="text-left">Jugador / Pareja</th><th>PJ</th><th>PG</th><th>SF</th><th>SC</th></tr>`;
+                let h = `<div class="group-container"><h3>${grp}</h3><table><tr><th class="text-left">Jugador / Pareja</th><th>PJ</th><th>PG</th><th>SF</th><th>SC</th><th>DIF(J)</th></tr>`;
                 g.forEach((s, i) => { 
                     let esFav = (s.id === miParejaFavoritaId); let iconEstrella = esFav ? "⭐" : "☆"; let colorEstrella = esFav ? "color: var(--fav-color);" : "color: #bdc3c7;";
-                    h += `<tr ${i < 2 ? 'class="highlight"' : ''}><td class="text-left"><span class="star-icon" style="${colorEstrella}" onclick="setFavorito('${s.id}')" title="Marcar como favorito">${iconEstrella}</span><b>${s.nombre}</b></td><td>${s.pj}</td><td>${s.pg}</td><td style="color:#2cba0e; font-weight:bold;">${s.jf}</td><td style="color:#e74c3c;">${s.jc}</td></tr>`; 
+                    h += `<tr ${i < 2 ? 'class="highlight"' : ''}><td class="text-left"><span class="star-icon" style="${colorEstrella}" onclick="setFavorito('${s.id}')" title="Marcar como favorito">${iconEstrella}</span><b>${s.nombre}</b></td><td>${s.pj}</td><td>${s.pg}</td><td style="color:#2cba0e; font-weight:bold;">${s.sf}</td><td style="color:#e74c3c;">${s.sc}</td><td>${s.dif > 0 ? '+'+s.dif : s.dif}</td></tr>`; 
                 });
                 html += h + `</table></div>`;
             }
@@ -474,30 +488,57 @@
     function renderizarBracketsPublicos() {
         const contenedor = document.getElementById('contenedorBracketsPublicos'); 
         
-        let pFinales = partidos.filter(p => p.ronda !== "Grupos" && p.categoria === categoriaSeleccionada);
+        let pFinales = partidos.filter(p => p.ronda === "Fase Final" && p.categoria === categoriaSeleccionada);
         if (pFinales.length === 0) return contenedor.innerHTML = `<div class="empty-state">El cuadro final se generará tras la fase de grupos de esta categoría.</div>`;
 
-        const renderMatch = (rondaNombre, arrayPartidos, color) => {
-            let html = "";
-            arrayPartidos.forEach(m => {
-                let wId = m.jugado ? (m.juegos1 > m.juegos2 ? m.id1 : m.id2) : "";
-                const s = (isW, isP, idTeam) => { let style = ""; if(idTeam && idTeam === miParejaFavoritaId) style += "background-color: #fffbdd; border-left: 3px solid var(--fav-color); "; if(isW) style += "color:#2cba0e; font-weight:bold;"; else if(isP && !isW) style += "text-decoration:line-through; color:#bdc3c7;"; return style; };
-                html += `<div class="bracket-match"><div class="bracket-header" style="background:${color};">${m.cruce || 'Cruce'}</div><div class="bracket-team" style="${s(wId === m.id1, m.jugado, m.id1)}"><span>${m.nombre1||'Por definir'}</span>${wId === m.id1 ? ' 🏆' : ''}</div><div class="bracket-team" style="${s(wId === m.id2, m.jugado, m.id2)}"><span>${m.nombre2||'Por definir'}</span>${wId === m.id2 ? ' 🏆' : ''}</div></div>`;
-            });
-            return html;
+        const getM = (cruce) => pFinales.find(p => p.cruce === cruce);
+            
+        const renderTeam = (match, pIndex, defName) => {
+            if(!match) return `<div class="bracket-team placeholder-team"><span>${defName}</span></div>`;
+            let id = pIndex === 1 ? match.id1 : match.id2;
+            let nombre = pIndex === 1 ? match.nombre1 : match.nombre2;
+            if (!nombre || nombre === "Por definir") return `<div class="bracket-team placeholder-team"><span>${defName}</span></div>`;
+            let isWinner = match.ganadorId === id; let isPlayed = match.jugado;
+            let strike = (isPlayed && !isWinner) ? 'text-decoration:line-through; color:#bdc3c7;' : '';
+            let color = isWinner ? 'color:#27ae60; font-weight:bold;' : '';
+            let isFav = (id === miParejaFavoritaId) ? 'background-color: #fffbdd; border-left: 3px solid var(--fav-color); ' : '';
+            return `<div class="bracket-team" style="${strike} ${color} ${isFav}"><span>${nombre}</span>${isWinner ? '<span>🏆</span>' : ''}</div>`;
         };
 
-        let oct = pFinales.filter(p => p.ronda === "Octavos").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); 
-        let cua = pFinales.filter(p => p.ronda === "Cuartos").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); 
-        let sem = pFinales.filter(p => p.ronda === "Semifinal").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || "")); 
-        let fin = pFinales.filter(p => p.ronda === "Final").sort((a,b) => (a.cruce || "").localeCompare(b.cruce || ""));
+        const getWName = (m, def) => (m && m.ganadorNombre) ? m.ganadorNombre : def;
 
-        let html = `<div class="bracket-wrapper"><div class="bracket-container">`;
-        if(oct.length > 0) html += `<div class="bracket-column">${renderMatch("Octavos", oct, "#34495e")}</div>`; 
-        if(cua.length > 0 || oct.length > 0) html += `<div class="bracket-column">${renderMatch("Cuartos", cua, "#8e44ad")}</div>`; 
-        if(sem.length > 0 || cua.length > 0) html += `<div class="bracket-column">${renderMatch("Semifinal", sem, "#9b59b6")}</div>`; 
-        if(fin.length > 0 || sem.length > 0) html += `<div class="bracket-column" style="justify-content: center;">${renderMatch("Final", fin, "#e67e22")}</div>`;
-        contenedor.innerHTML = html + `</div></div>`;
+        let clas = generarClasificacionArray();
+        let gA = clas.filter(c => c.grupo === "Grupo A"); let gB = clas.filter(c => c.grupo === "Grupo B"); 
+        let gC = clas.filter(c => c.grupo === "Grupo C"); let gD = clas.filter(c => c.grupo === "Grupo D");
+
+        let p1A = gA.length > 0 ? gA[0].nombre : '1º Grupo A'; let p2A = gA.length > 1 ? gA[1].nombre : '2º Grupo A';
+        let p1B = gB.length > 0 ? gB[0].nombre : '1º Grupo B'; let p2B = gB.length > 1 ? gB[1].nombre : '2º Grupo B';
+        let p1C = gC.length > 0 ? gC[0].nombre : '1º Grupo C'; let p2C = gC.length > 1 ? gC[1].nombre : '2º Grupo C';
+        let p1D = gD.length > 0 ? gD[0].nombre : '1º Grupo D'; let p2D = gD.length > 1 ? gD[1].nombre : '2º Grupo D';
+
+        let q1 = getM("1º A vs 2º C"); let q2 = getM("1º B vs 2º D"); let q3 = getM("1º C vs 2º A"); let q4 = getM("1º D vs 2º B");
+        let s1 = getM("Semi 1"); let s2 = getM("Semi 2"); let f = getM("Final");
+
+        let html = `
+        <div class="bracket-wrapper">
+            <div class="bracket-container">
+                <div class="bracket-column">
+                    <div class="bracket-match"><div class="bracket-header" style="background:#8e44ad;">Cuartos 1</div>${renderTeam(q1, 1, p1A)}${renderTeam(q1, 2, p2C)}</div>
+                    <div class="bracket-match"><div class="bracket-header" style="background:#8e44ad;">Cuartos 2</div>${renderTeam(q2, 1, p1B)}${renderTeam(q2, 2, p2D)}</div>
+                    <div class="bracket-match"><div class="bracket-header" style="background:#8e44ad;">Cuartos 3</div>${renderTeam(q3, 1, p1C)}${renderTeam(q3, 2, p2A)}</div>
+                    <div class="bracket-match"><div class="bracket-header" style="background:#8e44ad;">Cuartos 4</div>${renderTeam(q4, 1, p1D)}${renderTeam(q4, 2, p2B)}</div>
+                </div>
+                <div class="bracket-column">
+                    <div class="bracket-match"><div class="bracket-header" style="background:#9b59b6;">Semifinal 1</div>${renderTeam(s1, 1, getWName(q1, 'Ganador C1'))}${renderTeam(s1, 2, getWName(q2, 'Ganador C2'))}</div>
+                    <div class="bracket-match"><div class="bracket-header" style="background:#9b59b6;">Semifinal 2</div>${renderTeam(s2, 1, getWName(q3, 'Ganador C3'))}${renderTeam(s2, 2, getWName(q4, 'Ganador C4'))}</div>
+                </div>
+                <div class="bracket-column" style="justify-content: center;">
+                    <div class="bracket-match" style="border-color:#e67e22;"><div class="bracket-header" style="background:#e67e22; color:#fff;">GRAN FINAL</div>${renderTeam(f, 1, getWName(s1, 'Ganador S1'))}${renderTeam(f, 2, getWName(s2, 'Ganador S2'))}</div>
+                </div>
+            </div>
+        </div>`;
+        
+        contenedor.innerHTML = html;
     }
 </script>
 </body>
