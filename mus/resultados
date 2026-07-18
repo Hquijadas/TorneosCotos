@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anotador - Torneo de Mus</title>
+    <style>
+        :root { --primary: #2980b9; --bg: #f4f7f6; --text: #2c3e50; --success: #27ae60; --danger: #e74c3c; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; padding-bottom: 30px; }
+        
+        /* Cabecera pegajosa */
+        .header { background-color: var(--text); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .header h1 { margin: 0; font-size: 1.3em; }
+        .status-bar { background: #d4efdf; color: #1e8449; font-size: 0.8em; padding: 8px; text-align: center; font-weight: bold; }
+        .status-bar.error { background: #fadbd8; color: #c0392b; }
+
+        .container { padding: 15px; max-width: 500px; margin: 0 auto; }
+
+        /* Buscador y Filtros */
+        .search-container { margin-bottom: 15px; }
+        .search-input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 1em; box-sizing: border-box; outline: none; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .search-input:focus { border-color: var(--primary); }
+        
+        .filtros { display: flex; gap: 10px; margin-bottom: 20px; }
+        .filtros select { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 1em; background: white; outline: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+        /* Tarjeta de Anotación */
+        .match-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid var(--primary); }
+        .match-card.jugado { border-left-color: var(--success); opacity: 0.8; }
+        
+        .match-badge { display: inline-block; background: #eee; padding: 4px 8px; border-radius: 6px; font-size: 0.8em; font-weight: bold; margin-bottom: 10px; color: #555; }
+        
+        .team-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #eee; }
+        .team-row:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        
+        .team-name { font-size: 1.1em; font-weight: bold; width: 65%; line-height: 1.2; }
+        
+        /* Inputs adaptados para dedos grandes */
+        .score-input { width: 60px; height: 50px; text-align: center; font-size: 1.5em; font-weight: bold; border: 2px solid #bdc3c7; border-radius: 8px; background: #fafafa; outline: none; transition: 0.2s; }
+        .score-input:focus { border-color: var(--primary); background: white; }
+        
+        .btn-save { width: 100%; background: var(--primary); color: white; border: none; padding: 15px; font-size: 1.1em; font-weight: bold; border-radius: 8px; margin-top: 15px; cursor: pointer; transition: 0.2s; }
+        .btn-save:active { transform: scale(0.98); }
+        .btn-save.saved { background: var(--success); }
+        
+        .empty-state { text-align: center; color: #7f8c8d; padding: 40px 20px; font-size: 1.1em; }
+    </style>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <div class="header">
+        <h1>📝 Anotador de Resultados</h1>
+    </div>
+    <div class="status-bar" id="statusNube">Conectando...</div>
+
+    <div class="container">
+        <!-- Nuevo Buscador -->
+        <div class="search-container">
+            <input type="text" id="buscadorAnotador" class="search-input" placeholder="🔍 Buscar pareja o jugador..." onkeyup="renderizarPartidos()">
+        </div>
+
+        <!-- Filtros Rápidos -->
+        <div class="filtros">
+            <select id="filtroEstado" onchange="renderizarPartidos()">
+                <option value="pendientes">⏳ Solo Pendientes</option>
+                <option value="jugados">✅ Ya Jugados (Para corregir)</option>
+                <option value="todos">Todos los partidos</option>
+            </select>
+            
+            <select id="filtroFase" onchange="renderizarPartidos()">
+                <option value="todos">Todas las Fases</option>
+                <option value="Grupos">Fase de Grupos</option>
+                <option value="Fase Final">Fase Final (Cruces)</option>
+            </select>
+        </div>
+
+        <div id="contenedorPartidos">
+            <!-- Las tarjetas se inyectan aquí -->
+        </div>
+    </div>
+
+<script>
+    window.onerror = function(msg, url, line) {
+        const status = document.getElementById('statusNube');
+        status.innerHTML = "Error JS: " + msg; status.className = "status-bar error";
+        return false;
+    };
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAEsULVtB_DGK65CseESvzAunU3_MjjaiI",
+      authDomain: "padel-4d591.firebaseapp.com",
+      projectId: "padel-4d591",
+      storageBucket: "padel-4d591.firebasestorage.app",
+      messagingSenderId: "8047356944",
+      appId: "1:8047356944:web:db6ea9e5d99ba371b2ae95",
+      measurementId: "G-1T4924FJ7E"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    db.settings({ experimentalForceLongPolling: true, useFetchStreams: false });
+
+    let partidos = [];
+
+    db.collection("partidos_mus").onSnapshot((qs) => { 
+        partidos = []; 
+        qs.forEach((doc) => { partidos.push(doc.data()); }); 
+        renderizarPartidos(); 
+        const status = document.getElementById('statusNube');
+        status.innerHTML = "🟢 Conectado y Sincronizado";
+        status.className = "status-bar";
+    }, (error) => {
+        const status = document.getElementById('statusNube');
+        status.innerHTML = "🔴 Error de conexión"; status.className = "status-bar error";
+    });
+
+    function renderizarPartidos() {
+        const contenedor = document.getElementById('contenedorPartidos');
+        const filtroEstado = document.getElementById('filtroEstado').value;
+        const filtroFase = document.getElementById('filtroFase').value;
+        const textoBusqueda = (document.getElementById('buscadorAnotador').value || "").toLowerCase();
+        
+        let html = "";
+        
+        let pFiltrados = [...partidos].sort((a,b) => (a.ronda||"").localeCompare(b.ronda||"") || (a.cruce||a.grupo||"").localeCompare(b.cruce||b.grupo||""));
+
+        pFiltrados.forEach(m => {
+            // 1. Aplicar Búsqueda por texto
+            if (textoBusqueda !== "") {
+                let coincide = ((m.nombre1 || "").toLowerCase().includes(textoBusqueda)) || ((m.nombre2 || "").toLowerCase().includes(textoBusqueda));
+                if (!coincide) return; // Si no coincide, nos saltamos esta tarjeta
+            }
+
+            // 2. Aplicar Filtro de Estado
+            if (filtroEstado === "pendientes" && m.jugado) return;
+            if (filtroEstado === "jugados" && !m.jugado) return;
+            
+            // 3. Aplicar Filtro de Fase
+            if (filtroFase === "Grupos" && m.ronda !== "Grupos") return;
+            if (filtroFase === "Fase Final" && m.ronda === "Grupos") return;
+
+            if (m.ronda !== "Grupos" && (!m.nombre1 || !m.nombre2 || m.nombre1 === "Por definir" || m.nombre2 === "Por definir")) {
+                if(filtroEstado === "pendientes") return; 
+            }
+
+            let etiqueta = m.ronda === "Grupos" ? m.grupo : m.cruce;
+            let claseJugado = m.jugado ? "jugado" : "";
+            let txtBoton = m.jugado ? "Actualizar Corrección" : "Guardar Resultado";
+            let claseBoton = m.jugado ? "saved" : "";
+
+            html += `
+                <div class="match-card ${claseJugado}">
+                    <div class="match-badge">${etiqueta}</div>
+                    
+                    <div class="team-row">
+                        <div class="team-name">${m.nombre1}</div>
+                        <input type="number" id="j1-${m.id}" class="score-input" value="${m.jugado ? m.juegos1 : ''}" min="0" max="3" inputmode="numeric" pattern="[0-9]*" placeholder="0">
+                    </div>
+                    
+                    <div class="team-row">
+                        <div class="team-name">${m.nombre2}</div>
+                        <input type="number" id="j2-${m.id}" class="score-input" value="${m.jugado ? m.juegos2 : ''}" min="0" max="3" inputmode="numeric" pattern="[0-9]*" placeholder="0">
+                    </div>
+                    
+                    <button id="btn-${m.id}" class="btn-save ${claseBoton}" onclick="guardarResultadoMovil('${m.id}')">${txtBoton}</button>
+                </div>
+            `;
+        });
+
+        contenedor.innerHTML = html || `<div class="empty-state">No hay partidos que coincidan con la búsqueda o filtros. 🎉</div>`;
+    }
+
+    function guardarResultadoMovil(idPartido) {
+        const input1 = document.getElementById(`j1-${idPartido}`).value;
+        const input2 = document.getElementById(`j2-${idPartido}`).value;
+        
+        if(input1 === "" || input2 === "") return alert("Por favor, introduce los juegos de ambas parejas.");
+        
+        const j1 = parseInt(input1);
+        const j2 = parseInt(input2);
+        
+        if (j1 === j2) return alert("En el mus no hay empate. Revisa el resultado.");
+
+        const partido = partidos.find(p => p.id === idPartido);
+        const btn = document.getElementById(`btn-${idPartido}`);
+        
+        btn.innerText = "Guardando...";
+        
+        db.collection("partidos_mus").doc(idPartido).update({ 
+            juegos1: j1, 
+            juegos2: j2, 
+            jugado: true 
+        }).then(() => {
+            btn.innerText = "¡Guardado!";
+            btn.classList.add("saved");
+            
+            if (partido.ronda !== "Grupos") {
+                avanzarGanadorMovil(partido, j1, j2);
+            }
+        }).catch(err => {
+            alert("Error al guardar: " + err.message);
+            btn.innerText = "Reintentar";
+        });
+    }
+
+    function avanzarGanadorMovil(partido, j1, j2) {
+        let ganadorId = j1 > j2 ? partido.id1 : partido.id2; 
+        let ganadorNombre = j1 > j2 ? partido.nombre1 : partido.nombre2;
+        
+        const mapaAvance = { 
+            "Octavos 1": { next: "Cuartos 1", pos: 1 }, "Octavos 2": { next: "Cuartos 1", pos: 2 }, 
+            "Octavos 3": { next: "Cuartos 2", pos: 1 }, "Octavos 4": { next: "Cuartos 2", pos: 2 }, 
+            "Octavos 5": { next: "Cuartos 3", pos: 1 }, "Octavos 6": { next: "Cuartos 3", pos: 2 }, 
+            "Octavos 7": { next: "Cuartos 4", pos: 1 }, "Octavos 8": { next: "Cuartos 4", pos: 2 }, 
+            "Cuartos 1": { next: "Semifinal 1", pos: 1 }, "Cuartos 2": { next: "Semifinal 1", pos: 2 }, 
+            "Cuartos 3": { next: "Semifinal 2", pos: 1 }, "Cuartos 4": { next: "Semifinal 2", pos: 2 }, 
+            "Semifinal 1": { next: "Final", pos: 1 }, "Semifinal 2": { next: "Final", pos: 2 } 
+        };
+        
+        let ruta = mapaAvance[partido.cruce]; 
+        if (!ruta) return; 
+        
+        let nextMatch = partidos.find(p => p.cruce === ruta.next);
+        
+        if (nextMatch) {
+            let updateData = {}; 
+            if (ruta.pos === 1) { updateData.id1 = ganadorId; updateData.nombre1 = ganadorNombre; } 
+            else { updateData.id2 = ganadorId; updateData.nombre2 = ganadorNombre; }
+            db.collection("partidos_mus").doc(nextMatch.id).update(updateData);
+        } else {
+            let newId = "F-" + Date.now().toString() + Math.floor(Math.random()*1000); 
+            let rondaNext = ruta.next.split(" ")[0]; 
+            db.collection("partidos_mus").doc(newId).set({ 
+                id: newId, 
+                id1: ruta.pos === 1 ? ganadorId : "", 
+                nombre1: ruta.pos === 1 ? ganadorNombre : "Por definir", 
+                id2: ruta.pos === 2 ? ganadorId : "", 
+                nombre2: ruta.pos === 2 ? ganadorNombre : "Por definir", 
+                grupo: "Fase Final", 
+                ronda: rondaNext, 
+                cruce: ruta.next, 
+                jugado: false, juegos1: 0, juegos2: 0 
+            });
+        }
+    }
+</script>
+</body>
+</html>
