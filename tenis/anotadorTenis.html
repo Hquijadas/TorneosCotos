@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anotador - Torneo de Tenis</title>
+    <style>
+        :root { --primary: #2980b9; --bg: #f4f7f6; --text: #2c3e50; --success: #27ae60; --danger: #e74c3c; --accent: #8e44ad; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; padding-bottom: 30px; }
+        
+        /* Cabecera pegajosa */
+        .header { background-color: var(--text); color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .header h1 { margin: 0; font-size: 1.3em; }
+        .status-bar { background: #d4efdf; color: #1e8449; font-size: 0.8em; padding: 8px; text-align: center; font-weight: bold; }
+        .status-bar.error { background: #fadbd8; color: #c0392b; }
+
+        .container { padding: 15px; max-width: 500px; margin: 0 auto; }
+
+        /* Buscador y Filtros */
+        .search-container { margin-bottom: 15px; }
+        .search-input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 1em; box-sizing: border-box; outline: none; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background: white; }
+        .search-input:focus { border-color: var(--primary); }
+        
+        .filtros { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .filtros-row { display: flex; gap: 10px; }
+        .filtros select { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #ccc; font-size: 1em; background: white; outline: none; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+        /* Tarjeta de Anotación */
+        .match-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid var(--primary); }
+        .match-card.jugado { border-left-color: var(--success); opacity: 0.9; background-color: #fdfefe; }
+        .match-card.final { border-left-color: var(--accent); }
+        
+        .match-badge { display: inline-block; background: #eee; padding: 4px 8px; border-radius: 6px; font-size: 0.8em; font-weight: bold; margin-bottom: 10px; color: #555; }
+        .match-badge.cat { background: #eaf2f8; color: #2980b9; margin-right: 5px; }
+        
+        .btn-save { width: 100%; background: var(--primary); color: white; border: none; padding: 15px; font-size: 1.1em; font-weight: bold; border-radius: 8px; margin-top: 15px; cursor: pointer; transition: 0.2s; }
+        .btn-save:active { transform: scale(0.98); }
+        .btn-save.saved { background: var(--success); }
+        
+        .empty-state { text-align: center; color: #7f8c8d; padding: 40px 20px; font-size: 1.1em; }
+    </style>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🎾 Anotador Tenis</h1>
+    </div>
+    <div class="status-bar" id="statusNube">Conectando a Firebase...</div>
+
+    <div class="container">
+        <!-- Buscador -->
+        <div class="search-container">
+            <input type="text" id="buscadorAnotador" class="search-input" placeholder="🔍 Buscar jugador o pareja..." onkeyup="renderizarPartidos()">
+        </div>
+
+        <!-- Filtros Rápidos -->
+        <div class="filtros">
+            <select id="filtroCategoria" onchange="renderizarPartidos()" style="border-color: var(--primary); font-weight: bold;">
+                <option value="Individual">🎾 Individual</option>
+                <option value="Dobles">🎾 Dobles</option>
+                <option value="Infantil">🎾 Infantil</option>
+            </select>
+            <div class="filtros-row">
+                <select id="filtroEstado" onchange="renderizarPartidos()">
+                    <option value="pendientes">⏳ Pendientes</option>
+                    <option value="jugados">✅ Jugados (Corregir)</option>
+                    <option value="todos">Todos</option>
+                </select>
+                <select id="filtroFase" onchange="renderizarPartidos()">
+                    <option value="todos">Todas las Fases</option>
+                    <option value="Grupos">Grupos</option>
+                    <option value="Fase Final">Eliminatorias</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="contenedorPartidos">
+            <!-- Las tarjetas se inyectan aquí -->
+        </div>
+    </div>
+
+<script>
+    window.onerror = function(msg, url, line) {
+        const status = document.getElementById('statusNube');
+        status.innerHTML = "Error JS: " + msg; status.className = "status-bar error";
+        return false;
+    };
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAEsULVtB_DGK65CseESvzAunU3_MjjaiI",
+      authDomain: "padel-4d591.firebaseapp.com",
+      projectId: "padel-4d591",
+      storageBucket: "padel-4d591.firebasestorage.app",
+      messagingSenderId: "8047356944",
+      appId: "1:8047356944:web:db6ea9e5d99ba371b2ae95",
+      measurementId: "G-1T4924FJ7E"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let partidos = [];
+
+    db.collection("tenis_partidos").onSnapshot((qs) => { 
+        partidos = []; 
+        qs.forEach((doc) => { partidos.push(doc.data()); }); 
+        renderizarPartidos(); 
+        const status = document.getElementById('statusNube');
+        status.innerHTML = "🟢 Conectado y Sincronizado";
+        status.className = "status-bar";
+    }, (error) => {
+        const status = document.getElementById('statusNube');
+        status.innerHTML = "🔴 Error de conexión"; status.className = "status-bar error";
+    });
+
+    function renderizarPartidos() {
+        const contenedor = document.getElementById('contenedorPartidos');
+        const filtroCategoria = document.getElementById('filtroCategoria').value;
+        const filtroEstado = document.getElementById('filtroEstado').value;
+        const filtroFase = document.getElementById('filtroFase').value;
+        const textoBusqueda = (document.getElementById('buscadorAnotador').value || "").toLowerCase();
+        
+        let html = "";
+        
+        let pFiltrados = [...partidos].sort((a,b) => (a.ronda||"").localeCompare(b.ronda||"") || (a.cruce||a.grupo||"").localeCompare(b.cruce||b.grupo||""));
+
+        pFiltrados.forEach(m => {
+            if (m.categoria !== filtroCategoria) return;
+
+            if (textoBusqueda !== "") {
+                let coincide = ((m.nombre1 || "").toLowerCase().includes(textoBusqueda)) || ((m.nombre2 || "").toLowerCase().includes(textoBusqueda));
+                if (!coincide) return;
+            }
+
+            if (filtroEstado === "pendientes" && m.jugado) return;
+            if (filtroEstado === "jugados" && !m.jugado) return;
+            
+            if (filtroFase === "Grupos" && m.ronda !== "Grupos") return;
+            if (filtroFase === "Fase Final" && m.ronda === "Grupos") return;
+
+            if (m.ronda !== "Grupos" && (!m.nombre1 || !m.nombre2 || m.nombre1 === "Por definir" || m.nombre2 === "Por definir")) {
+                if(filtroEstado === "pendientes") return; 
+            }
+
+            let etiqueta = m.ronda === "Grupos" ? m.grupo : m.cruce;
+            let claseJugado = m.jugado ? "jugado" : "";
+            let claseFinal = m.ronda !== "Grupos" ? "final" : "";
+            let txtBoton = m.jugado ? "Actualizar Resultado" : "Guardar Resultado";
+            let claseBoton = m.jugado ? "saved" : "";
+
+            let controlesAnotacion = "";
+
+            if (m.ronda === "Grupos") {
+                controlesAnotacion = `
+                    <div style="margin-bottom: 15px; font-size: 1.1em; font-weight: bold; text-align: center;">
+                        ${m.nombre1} <br><span style="color:#7f8c8d; font-size:0.8em; margin: 5px 0; display: inline-block;">VS</span><br> ${m.nombre2}
+                    </div>
+                    <input type="text" id="res-${m.id}" class="search-input" style="text-align: center; font-weight: bold; font-size: 1.1em;" placeholder="Sets (Ej: 6-4, 4-6, 6-2)" value="${m.jugado ? (m.resultadoSets || '') : ''}">
+                `;
+            } else {
+                let ganadorId = m.jugado ? m.ganadorId : "";
+                controlesAnotacion = `
+                    <div style="margin-bottom: 15px; font-size: 1.1em; font-weight: bold; text-align: center;">
+                        ${m.nombre1} <br><span style="color:#7f8c8d; font-size:0.8em; margin: 5px 0; display: inline-block;">VS</span><br> ${m.nombre2}
+                    </div>
+                    <input type="text" id="resSets-${m.id}" class="search-input" style="margin-bottom: 10px; text-align: center; font-weight: bold; font-size: 1.1em;" placeholder="Sets (Ej: 6-4, 6-2)" value="${m.jugado ? (m.resultadoSets || '') : ''}">
+                    <select id="ganador-${m.id}" class="search-input" style="border-color: var(--accent); font-weight: bold;">
+                        <option value="">¿Quién ha ganado el partido?</option>
+                        <option value="${m.id1}|${m.nombre1}" ${ganadorId === m.id1 ? 'selected' : ''}>Ganador: ${m.nombre1}</option>
+                        <option value="${m.id2}|${m.nombre2}" ${ganadorId === m.id2 ? 'selected' : ''}>Ganador: ${m.nombre2}</option>
+                    </select>
+                `;
+            }
+
+            html += `
+                <div class="match-card ${claseJugado} ${claseFinal}">
+                    <div class="match-badge cat">${m.categoria}</div>
+                    <div class="match-badge">${etiqueta}</div>
+                    
+                    ${controlesAnotacion}
+                    
+                    <button id="btn-${m.id}" class="btn-save ${claseBoton}" onclick="guardarResultadoTenis('${m.id}', '${m.ronda}')">${txtBoton}</button>
+                </div>
+            `;
+        });
+
+        contenedor.innerHTML = html || `<div class="empty-state">No hay partidos que coincidan con los filtros. 🎾</div>`;
+    }
+
+    function guardarResultadoTenis(idPartido, ronda) {
+        const btn = document.getElementById(`btn-${idPartido}`);
+        btn.innerText = "Guardando...";
+
+        if (ronda === "Grupos") {
+            const resInput = document.getElementById(`res-${idPartido}`).value.trim();
+            if(!resInput) {
+                btn.innerText = "Guardar Resultado";
+                return alert("Introduce un resultado válido, ej: 6-4, 4-6, 6-2");
+            }
+
+            const regex = /(\d+)\s*-\s*(\d+)/g;
+            let match;
+            let sets1 = 0, sets2 = 0, juegos1 = 0, juegos2 = 0;
+            let found = false;
+
+            while ((match = regex.exec(resInput)) !== null) {
+                found = true;
+                let j1 = parseInt(match[1]);
+                let j2 = parseInt(match[2]);
+                juegos1 += j1;
+                juegos2 += j2;
+                if (j1 > j2) sets1++;
+                else if (j2 > j1) sets2++;
+            }
+
+            if (!found) {
+                btn.innerText = "Guardar Resultado";
+                return alert("Formato no reconocido. Usa guiones para separar los juegos, ej: 6-4, 6-2");
+            }
+            
+            if (sets1 === sets2) {
+                btn.innerText = "Guardar Resultado";
+                return alert("El partido no puede acabar en empate a sets.");
+            }
+
+            db.collection("tenis_partidos").doc(idPartido).update({ 
+                jugado: true,
+                resultadoSets: resInput,
+                sets1: sets1,
+                sets2: sets2,
+                juegos1: juegos1, 
+                juegos2: juegos2 
+            }).then(() => confirmarGuardado(btn)).catch(err => errorGuardado(btn, err));
+            
+        } else {
+            const resultadoStr = document.getElementById(`resSets-${idPartido}`).value.trim();
+            const ganadorVal = document.getElementById(`ganador-${idPartido}`).value;
+            
+            if(!resultadoStr || !ganadorVal) {
+                btn.innerText = "Guardar Resultado";
+                return alert("Escribe el resultado de los sets y selecciona quién ha ganado.");
+            }
+            
+            const [ganadorId, ganadorNombre] = ganadorVal.split("|");
+
+            db.collection("tenis_partidos").doc(idPartido).update({ 
+                resultadoSets: resultadoStr, 
+                ganadorId: ganadorId, 
+                ganadorNombre: ganadorNombre, 
+                jugado: true 
+            }).then(() => {
+                confirmarGuardado(btn);
+                avanzarGanadorTenis(idPartido, ganadorId, ganadorNombre);
+            }).catch(err => errorGuardado(btn, err));
+        }
+    }
+
+    function confirmarGuardado(btn) {
+        btn.innerText = "¡Guardado!";
+        btn.classList.add("saved");
+    }
+
+    function errorGuardado(btn, err) {
+        alert("Error al guardar: " + err.message);
+        btn.innerText = "Reintentar";
+    }
+
+    function avanzarGanadorTenis(idPartido, ganadorId, ganadorNombre) {
+        let match = partidos.find(p => p.id === idPartido);
+        if (!match) return;
+
+        const avanzaA = {
+            "1º A vs 2º C": { next: "Semi 1", pos: 1 }, "1º B vs 2º D": { next: "Semi 1", pos: 2 },
+            "1º C vs 2º A": { next: "Semi 2", pos: 1 }, "1º D vs 2º B": { next: "Semi 2", pos: 2 },
+            "Semi 1": { next: "Final", pos: 1 }, "Semi 2": { next: "Final", pos: 2 }
+        };
+
+        if(avanzaA[match.cruce]) {
+            let ruta = avanzaA[match.cruce];
+            let nextMatch = partidos.find(p => p.categoria === match.categoria && p.ronda === "Fase Final" && p.cruce === ruta.next);
+            
+            if (nextMatch) {
+                let updateData = {}; 
+                if (ruta.pos === 1) { updateData.id1 = ganadorId; updateData.nombre1 = ganadorNombre; } 
+                else { updateData.id2 = ganadorId; updateData.nombre2 = ganadorNombre; }
+                db.collection("tenis_partidos").doc(nextMatch.id).update(updateData);
+            } else {
+                let newId = "FF-" + Date.now().toString() + Math.floor(Math.random()*1000);
+                let newData = { 
+                    id: newId, 
+                    id1: ruta.pos === 1 ? ganadorId : "", nombre1: ruta.pos === 1 ? ganadorNombre : "Por definir", 
+                    id2: ruta.pos === 2 ? ganadorId : "", nombre2: ruta.pos === 2 ? ganadorNombre : "Por definir", 
+                    categoria: match.categoria, grupo: "Fase Final", ronda: "Fase Final", cruce: ruta.next, 
+                    jugado: false, juegos1: 0, juegos2: 0, sets1: 0, sets2: 0, resultadoSets: "", dia: "", hora: "", pista: "" 
+                };
+                db.collection("tenis_partidos").doc(newId).set(newData);
+            }
+        }
+    }
+</script>
+</body>
+</html>
