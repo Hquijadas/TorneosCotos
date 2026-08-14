@@ -8,7 +8,7 @@
   <style>
     :root {
       --bg-color: #0e0e10;
-      --panel-bg: rgba(20, 20, 24, 0.90);
+      --panel-bg: rgba(20, 20, 24, 0.92);
       --accent-color: #1db954;
       --accent-hover: #1ed760;
       --text-main: #ffffff;
@@ -63,8 +63,10 @@
       background: var(--accent-color); color: #000;
       font-weight: bold; font-size: 0.85rem;
       border: none; border-radius: 6px; cursor: pointer;
+      transition: opacity 0.2s;
     }
     button:hover { background: var(--accent-hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-sec { background: rgba(255, 255, 255, 0.1); color: var(--text-main); margin-top: 6px; }
     .btn-auth { background: #1ed760; margin-bottom: 10px; }
 
@@ -79,7 +81,7 @@
     .disconnected { background: rgba(255, 75, 75, 0.2); color: #ff5555; border: 1px solid #ff5555; }
 
     audio { height: 32px; filter: invert(0.9) hue-rotate(180deg); }
-    #graph { width: 100%; height: 100%; }
+    #graph { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; }
   </style>
 </head>
 <body>
@@ -92,7 +94,7 @@
       <div id="auth-status" class="status-badge disconnected">Desconectado de Spotify</div>
       <div class="input-group">
         <label>Spotify Client ID</label>
-        <input type="text" id="clientIdInput" placeholder="Pega tu Client ID aquí">
+        <input type="text" id="clientIdInput" placeholder="Pega tu Client ID">
       </div>
       <button class="btn-auth" id="loginBtn" onclick="loginSpotify()">🔑 Conectar con Spotify</button>
     </div>
@@ -102,15 +104,15 @@
       
       <div class="input-group">
         <label>Artista Semilla (Spotify)</label>
-        <input type="text" id="artistInput" placeholder="ej. Daft Punk, Rosalía, Coldplay...">
+        <input type="text" id="artistInput" placeholder="ej. Daft Punk, Rosalía, Nirvana...">
       </div>
-      <button onclick="initGraph()">Cargar Grafo</button>
+      <button id="searchBtn" onclick="initGraph()">Cargar Grafo</button>
 
       <hr>
 
       <h3>Navegación</h3>
       <p class="hint">
-        • <strong>Click Izquierdo:</strong> Escuchar muestra y expandir relacionados en Spotify.<br>
+        • <strong>Click Izquierdo:</strong> Escuchar audio y expandir nodo.<br>
         • <strong>Click Derecho:</strong> Seleccionar para ruta A → B.
       </p>
       <button class="btn-sec" onclick="calculatePath()">Calcular Ruta Más Corta</button>
@@ -136,7 +138,7 @@
 
   <div id="player-bar" class="panel">
     <div>
-      <div id="now-playing" style="font-weight:600; font-size:0.9rem;">Conéctate a Spotify para empezar</div>
+      <div id="now-playing" style="font-weight:600; font-size:0.9rem;">Conéctate para empezar</div>
       <div id="source-tag" style="font-size:0.7rem; color:var(--text-sub);">Spotify Web API</div>
     </div>
     <audio id="audio-player" controls autoplay></audio>
@@ -150,7 +152,6 @@
     let selectedNodes = [];
     const imageCache = {};
 
-    // Obtener la URL de redirección dinámica actual (sin parámetros)
     const redirectUri = window.location.origin + window.location.pathname;
 
     function getLinkId(item) {
@@ -177,10 +178,9 @@
         .replace(/\//g, '_');
     }
 
-    // Iniciar flujo OAuth 2.0 PKCE
     async function loginSpotify() {
       const clientId = document.getElementById('clientIdInput').value.trim();
-      if (!clientId) return alert('Por favor, introduce tu Spotify Client ID');
+      if (!clientId) return alert('Introduce tu Spotify Client ID');
 
       localStorage.setItem('spotify_client_id', clientId);
 
@@ -188,12 +188,12 @@
       const hashed = await sha256(codeVerifier);
       const codeChallenge = base64encode(hashed);
 
-      window.localStorage.setItem('code_verifier', codeVerifier);
+      localStorage.setItem('code_verifier', codeVerifier);
 
       const params = {
         response_type: 'code',
         client_id: clientId,
-        scope: 'user-read-private playlist-modify-public',
+        scope: 'user-read-private',
         code_challenge_method: 'S256',
         code_challenge: codeChallenge,
         redirect_uri: redirectUri,
@@ -202,7 +202,6 @@
       window.location.href = 'https://accounts.spotify.com/authorize?' + new URLSearchParams(params).toString();
     }
 
-    // Canjear Authorization Code por Access Token
     async function getToken(code) {
       const codeVerifier = localStorage.getItem('code_verifier');
       const clientId = localStorage.getItem('spotify_client_id');
@@ -219,16 +218,19 @@
         }),
       };
 
-      const res = await fetch('https://accounts.spotify.com/api/token', payload);
-      const response = await res.json();
+      try {
+        const res = await fetch('https://accounts.spotify.com/api/token', payload);
+        const response = await res.json();
 
-      if (response.access_token) {
-        localStorage.setItem('access_token', response.access_token);
-        // Limpiar parámetros de la URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        checkAuthState();
-      } else {
-        alert('Error obteniendo token de Spotify: ' + (response.error_description || response.error));
+        if (response.access_token) {
+          localStorage.setItem('access_token', response.access_token);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          checkAuthState();
+        } else {
+          alert('Error en autenticación: ' + (response.error_description || response.error));
+        }
+      } catch (e) {
+        alert('Error al contactar con el servidor de autenticación de Spotify');
       }
     }
 
@@ -249,7 +251,7 @@
         document.getElementById('clientIdInput').parentElement.style.display = 'none';
         document.getElementById('loginBtn').style.display = 'none';
         appSection.style.display = 'block';
-        document.getElementById('now-playing').innerText = 'Selecciona o busca un artista';
+        document.getElementById('now-playing').innerText = 'Escribe un artista y carga el grafo';
       } else {
         const savedClientId = localStorage.getItem('spotify_client_id');
         if (savedClientId) document.getElementById('clientIdInput').value = savedClientId;
@@ -259,23 +261,29 @@
       }
     }
 
-    // Llamadas a Spotify API
     async function spotifyApi(endpoint) {
       const token = localStorage.getItem('access_token');
+      if (!token) throw new Error('No hay token de sesión.');
+
       const res = await fetch(`https://api.spotify.com/v1${endpoint}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
       if (res.status === 401) {
         alert('Tu sesión de Spotify ha caducado. Vuelve a iniciar sesión.');
         logoutSpotify();
         throw new Error('Token expirado');
       }
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || `HTTP ${res.status}`);
+      }
+
       return res.json();
     }
 
-    // --- INICIALIZACIÓN ---
     window.onload = async () => {
-      // Verificar si volvemos del redirect con el parámetro ?code=
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
 
@@ -285,7 +293,7 @@
         checkAuthState();
       }
 
-      // Inicializar ForceGraph Canvas
+      // Inicializar ForceGraph
       Graph = ForceGraph()(document.getElementById('graph'))
         .backgroundColor('#0e0e10')
         .nodeId('id')
@@ -341,16 +349,26 @@
       }
     }
 
-    // 1. Cargar Artista Inicial desde Spotify
+    // 1. Cargar Artista Inicial
     async function initGraph() {
-      const query = document.getElementById('artistInput').value.trim();
-      if (!query) return alert('Introduce el nombre de un artista');
+      const input = document.getElementById('artistInput');
+      const btn = document.getElementById('searchBtn');
+      const query = input.value.trim();
+
+      if (!query) return alert('Escribe el nombre de un artista');
+
+      btn.disabled = true;
+      btn.innerText = 'Buscando en Spotify...';
 
       try {
         const data = await spotifyApi(`/search?q=${encodeURIComponent(query)}&type=artist&limit=1`);
         const item = data.artists?.items[0];
 
-        if (!item) return alert('Artista no encontrado en Spotify');
+        if (!item) {
+          btn.disabled = false;
+          btn.innerText = 'Cargar Grafo';
+          return alert('No se encontró ningún artista con ese nombre en Spotify.');
+        }
 
         const artist = {
           id: item.id,
@@ -364,48 +382,56 @@
         updateCrateUI();
         Graph.graphData(graphData);
 
+        btn.innerText = 'Expandiendo grafo...';
         await expandNode(artist);
         await playArtistAudio(artist);
+
       } catch (err) {
-        console.error(err);
+        alert('Error de Spotify: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Cargar Grafo';
       }
     }
 
-    // 2. Expandir Nodos vía Spotify API
+    // 2. Expandir Nodos en Spotify
     async function expandNode(node) {
+      let relatedList = [];
+
+      // Intentar endpoint oficial de relacionados
       try {
-        let relatedList = [];
+        const res = await spotifyApi(`/artists/${node.id}/related-artists`);
+        if (res.artists && res.artists.length > 0) {
+          relatedList = res.artists;
+        }
+      } catch (e) {
+        console.warn('Endpoint related-artists no disponible, usando búsqueda por género en Spotify.');
+      }
 
-        // Consultar Artistas Relacionados de Spotify
+      // Si falla o viene vacío, buscar otros artistas por género en Spotify
+      if (relatedList.length === 0) {
         try {
-          const res = await spotifyApi(`/artists/${node.id}/related-artists`);
-          if (res.artists && res.artists.length > 0) {
-            relatedList = res.artists;
-          }
-        } catch (e) {}
-
-        // Fallback por género en Spotify si el catálogo no tiene relacionados directos
-        if (relatedList.length === 0 && node.genre) {
-          const resG = await spotifyApi(`/search?q=genre:"${encodeURIComponent(node.genre)}"&type=artist&limit=12`);
+          const searchParam = node.genre ? `genre:"${node.genre}"` : node.name;
+          const resG = await spotifyApi(`/search?q=${encodeURIComponent(searchParam)}&type=artist&limit=12`);
           if (resG.artists?.items) {
             relatedList = resG.artists.items.filter(a => a.id !== node.id);
           }
+        } catch (e) {
+          console.error(e);
         }
-
-        relatedList.forEach(item => {
-          const targetNode = {
-            id: item.id,
-            name: item.name,
-            genre: item.genres?.[0] || node.genre,
-            img: item.images[2]?.url || item.images[0]?.url || null
-          };
-          addNodeAndLink(node.id, targetNode);
-        });
-
-        Graph.graphData(graphData);
-      } catch (e) {
-        console.error('Error expandiendo nodo en Spotify:', e);
       }
+
+      relatedList.forEach(item => {
+        const targetNode = {
+          id: item.id,
+          name: item.name,
+          genre: item.genres?.[0] || node.genre,
+          img: item.images[2]?.url || item.images[0]?.url || null
+        };
+        addNodeAndLink(node.id, targetNode);
+      });
+
+      Graph.graphData(graphData);
     }
 
     function addNodeAndLink(sourceId, targetNode) {
@@ -426,7 +452,7 @@
       await playArtistAudio(node);
     }
 
-    // 3. Reproducción de Audio
+    // 3. Reproducción
     async function playArtistAudio(node) {
       const label = document.getElementById('now-playing');
       const player = document.getElementById('audio-player');
@@ -434,14 +460,13 @@
 
       let previewUrl = null;
 
-      // Intentar obtener preview de Spotify Top Tracks
       try {
         const tracksData = await spotifyApi(`/artists/${node.id}/top-tracks?market=from_token`);
         const trackWithPreview = tracksData.tracks?.find(t => t.preview_url);
         if (trackWithPreview) previewUrl = trackWithPreview.preview_url;
       } catch (e) {}
 
-      // Fallback a iTunes sólo si Spotify no tiene la muestra MP3 licenciada
+      // Fallback de audio
       if (!previewUrl) {
         try {
           const itunesRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(node.name)}&entity=song&limit=1`);
@@ -455,7 +480,7 @@
         player.src = previewUrl;
         player.play().catch(() => {});
       } else {
-        label.innerText = `${node.name} (Sin muestra de 30s disponible)`;
+        label.innerText = `${node.name} (Sin muestra de audio disponible)`;
       }
     }
 
@@ -466,7 +491,7 @@
       Graph.graphData(graphData);
     }
 
-    // 4. Algoritmo BFS para Ruta A -> B
+    // 4. BFS Shortest Path
     function calculatePath() {
       if (selectedNodes.length < 2) return alert('Haz click derecho sobre 2 artistas para fijar Origen (A) y Destino (B)');
       const startId = selectedNodes[0].id;
